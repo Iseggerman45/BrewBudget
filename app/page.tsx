@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
@@ -82,7 +82,7 @@ export default function Dashboard() {
     (t.name + t.category).toLowerCase().includes(search.toLowerCase())
   ), [transactions, search]);
 
-  function addTransaction(e: React.FormEvent) {
+  function addTransaction(e: FormEvent) {
     e.preventDefault();
     const amount = Number(newAmount);
     if (!newName.trim() || !Number.isFinite(amount) || amount <= 0) return;
