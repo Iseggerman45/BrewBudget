@@ -46,3 +46,24 @@
 @keyframes confettiFall{0%{top:-5%;opacity:1}100%{top:110%;opacity:0;transform:translateX(55px) rotate(720deg)}}
 @keyframes celebratePop{0%{opacity:0;transform:scale(.72) translateY(18px)}100%{opacity:1;transform:scale(1) translateY(0)}}
 @media(max-width:600px){.debt-summary-grid{grid-template-columns:1fr;gap:9px}.debt-total-card,.debt-progress-card{min-height:120px;padding:17px}.debt-payment-row{align-items:flex-start;flex-direction:column}.debt-payment-row .primary-button{width:100%}.debt-total-value{font-size:28px}}
+
+
+/* Quiet, tactile feedback */
+.sound-toggle{color:#bda4d1;transition:color .2s,background .2s,transform .2s}
+.sound-toggle:hover{color:#ead8f7;background:rgba(202,158,230,.12);transform:scale(1.04)}
+.toast{animation:toastArrive .32s cubic-bezier(.2,.8,.2,1) both}
+.toast-check{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgba(202,158,230,.2);color:#e3c8f5;animation:checkBloom .42s cubic-bezier(.2,.8,.2,1) both}
+.transaction-row:first-child{animation:rowArrive .38s cubic-bezier(.2,.8,.2,1) both}
+.transaction-row:first-child .transaction-icon{animation:iconSettle .5s cubic-bezier(.2,.8,.2,1) both}
+.entry-feedback .balance-card{animation:cardGlow .8s ease-out both}
+.entry-feedback .balance-card .balance-glow{animation:glowBreathe .8s ease-out both}
+.progress-fill{position:relative;overflow:hidden}
+.category-detail:hover .progress-fill,.debt-item:hover .progress-fill{filter:brightness(1.13);box-shadow:0 0 13px currentColor}
+.debt-item .progress-fill{transition:width .7s cubic-bezier(.2,.8,.2,1),filter .25s}
+@keyframes toastArrive{0%{opacity:0;transform:translate(-50%,12px) scale(.97)}100%{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes checkBloom{0%{transform:scale(.55);opacity:.4}70%{transform:scale(1.16)}100%{transform:scale(1)}}
+@keyframes rowArrive{0%{opacity:0;transform:translateY(-7px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes iconSettle{0%{transform:scale(.82) rotate(-7deg)}70%{transform:scale(1.08) rotate(2deg)}100%{transform:scale(1)}}
+@keyframes cardGlow{0%{border-color:rgba(202,158,230,.4);box-shadow:0 0 0 rgba(202,158,230,0)}100%{border-color:rgba(202,158,230,.17);box-shadow:0 0 28px rgba(202,158,230,.07)}}
+@keyframes glowBreathe{0%{opacity:.95;transform:scale(1.12)}100%{opacity:.45;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.toast,.toast-check,.transaction-row:first-child,.transaction-row:first-child .transaction-icon,.entry-feedback .balance-card,.entry-feedback .balance-card .balance-glow{animation:none!important}.glass-card,.progress-fill,.primary-button{transition:none!important}}
