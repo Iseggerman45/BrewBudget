@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       name: account.official_name || account.name,
       institution: institutionName,
       account_type: account.type === "depository" ? (account.subtype === "savings" ? "savings" : "checking") : account.type === "credit" ? "credit_card" : account.type === "investment" ? "investment" : account.type === "loan" ? "loan" : "other",
-      last_four: account.mask,
+      last_four: /^\\d{4}$/.test(account.mask ?? "") ? account.mask : null,
       current_balance: account.balances?.current ?? 0,
       currency_code: account.balances?.iso_currency_code || "USD",
       connection_source: "plaid",
