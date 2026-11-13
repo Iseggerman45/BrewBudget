@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const accountData = await plaidRequest<AccountsResult>("/accounts/get", { access_token: exchanged.access_token });
     const admin = createAdminClient();
 
-    const { error: itemError } = await admin.from("plaid_items").upsert({
+    const { error: itemError } = await admin.from("plaid_items").insert({
       owner_id: user.id,
       item_id: exchanged.item_id,
       institution_name: institutionName,
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       owner_id: user.id,
       name: account.official_name || account.name,
       institution: institutionName,
-      account_type: account.subtype || account.type,
+      account_type: account.type === "depository" ? (account.subtype === "savings" ? "savings" : "checking") : account.type === "credit" ? "credit_card" : account.type === "investment" ? "investment" : account.type === "loan" ? "loan" : "other",
       last_four: account.mask,
       current_balance: account.balances?.current ?? 0,
       currency_code: account.balances?.iso_currency_code || "USD",
