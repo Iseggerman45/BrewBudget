@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Coffee, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [setupNeeded, setSetupNeeded] = useState(false);
+  const [confirmationError, setConfirmationError] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSetupNeeded(params.get("setup") === "supabase");
+    setConfirmationError(params.get("error") === "confirmation");
+  }, []);
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -59,9 +65,6 @@ export default function LoginPage() {
       setBusy(false);
     }
   }
-
-  const setupNeeded = searchParams.get("setup") === "supabase";
-  const confirmationError = searchParams.get("error") === "confirmation";
 
   return (
     <main className="auth-shell">
