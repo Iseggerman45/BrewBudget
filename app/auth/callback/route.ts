@@ -31,7 +31,8 @@ export async function GET(request: Request) {
         { id: data.user.id, display_name: displayName || null },
         { onConflict: "id" }
       );
-      return NextResponse.redirect(new URL(next.startsWith("/") ? next : "/dashboard", origin));
+      const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+      return NextResponse.redirect(new URL(safeNext, origin));
     }
   }
 
