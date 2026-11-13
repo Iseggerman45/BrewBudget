@@ -67,3 +67,57 @@
 @keyframes cardGlow{0%{border-color:rgba(202,158,230,.4);box-shadow:0 0 0 rgba(202,158,230,0)}100%{border-color:rgba(202,158,230,.17);box-shadow:0 0 28px rgba(202,158,230,.07)}}
 @keyframes glowBreathe{0%{opacity:.95;transform:scale(1.12)}100%{opacity:.45;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.toast,.toast-check,.transaction-row:first-child,.transaction-row:first-child .transaction-icon,.entry-feedback .balance-card,.entry-feedback .balance-card .balance-glow{animation:none!important}.glass-card,.progress-fill,.primary-button{transition:none!important}}
+
+
+/* Account access */
+.auth-shell{min-height:100vh;position:relative;overflow:hidden;display:grid;place-items:center;padding:34px 18px;background:radial-gradient(ellipse at 18% 12%,rgba(202,158,230,.13),transparent 36%),radial-gradient(ellipse at 82% 85%,rgba(140,170,238,.1),transparent 34%),#171d25}
+.auth-orb{position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none}
+.auth-orb-one{width:360px;height:360px;top:-190px;right:-80px;background:radial-gradient(circle,rgba(202,158,230,.12),transparent 68%)}
+.auth-orb-two{width:420px;height:420px;bottom:-250px;left:-140px;background:radial-gradient(circle,rgba(140,170,238,.11),transparent 68%)}
+.auth-card{position:relative;width:min(100%,460px);padding:38px 38px 30px;border:1px solid rgba(231,237,247,.12);border-radius:24px;background:linear-gradient(145deg,rgba(43,52,64,.94),rgba(29,35,45,.96));box-shadow:0 28px 90px rgba(0,0,0,.38),inset 0 1px rgba(255,255,255,.05);backdrop-filter:blur(24px)}
+.auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:38px}
+.auth-brand-mark{width:45px;height:45px;border-radius:15px;display:grid;place-items:center;color:#2b2034;background:linear-gradient(140deg,#e5a86a,#ca9ee6);box-shadow:0 8px 25px rgba(202,158,230,.18)}
+.auth-brand-name{font:800 20px Manrope,sans-serif;letter-spacing:-.8px;color:#f0eee8}.auth-brand-name span{color:#ca9ee6}
+.auth-brand p{font-size:10px;color:#929ba9;margin:2px 0 0}
+.auth-eyebrow{display:flex;align-items:center;gap:8px;color:#bda4d1;font:10px 'DM Mono',monospace;letter-spacing:1.3px}
+.auth-eyebrow span{width:18px;height:1px;background:#ca9ee6}
+.auth-card h1{font:700 clamp(27px,5vw,34px) Manrope,sans-serif;letter-spacing:-1.2px;color:#f0eee8;margin:13px 0 9px}
+.auth-intro{font-size:12px;line-height:1.7;color:#9ba4b1;margin:0 0 24px;max-width:350px}
+.auth-form{display:grid;gap:15px}
+.auth-form label{display:grid;gap:7px;color:#c5cbd2;font-size:11px}
+.auth-input-wrap{height:46px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid #ffffff17;border-radius:10px;background:rgba(12,17,24,.38);color:#8e98a6;transition:border-color .2s,box-shadow .2s}
+.auth-input-wrap:focus-within{border-color:#ca9ee688;box-shadow:0 0 0 3px #ca9ee612}
+.auth-input-wrap input{flex:1;min-width:0;background:none;border:0;outline:0;color:#f0eee8;font-size:12px}
+.auth-input-wrap input::placeholder{color:#697482}
+.auth-show-password{display:grid;place-items:center;background:none;border:0;color:#8993a0;padding:4px}
+.auth-submit{height:47px;margin-top:7px;border:0;border-radius:10px;background:linear-gradient(120deg,#d6b2ed,#b7a0d4);color:#2a2031;font-size:12px;font-weight:800;box-shadow:0 8px 22px rgba(202,158,230,.17);transition:transform .2s,filter .2s}
+.auth-submit:hover{transform:translateY(-2px);filter:brightness(1.05)}
+.auth-submit:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.auth-submit span{margin-left:7px;font-size:17px;vertical-align:-1px}
+.auth-switch{text-align:center;color:#929ba9;font-size:11px;margin-top:20px}
+.auth-switch button{border:0;background:none;color:#d7b8ef;font-weight:700;padding:0 0 0 4px}
+.auth-security{display:flex;align-items:flex-start;gap:9px;padding-top:19px;margin-top:22px;border-top:1px solid #ffffff0d;color:#818c99;font-size:9px;line-height:1.6}
+.auth-security svg{flex-shrink:0;color:#bda4d1}
+.auth-footer{display:flex;align-items:center;gap:7px;color:#697482;font-size:10px;margin:18px 0 0}
+.auth-footer svg{color:#ca9ee6}
+.auth-alert,.auth-error,.auth-success{padding:11px 12px;border-radius:9px;font-size:10px;line-height:1.55;margin:0 0 14px}
+.auth-alert{color:#e8c38d;background:#e5a86a12;border:1px solid #e5a86a35}
+.auth-error{color:#f0a4a4;background:#e7828412;border:1px solid #e7828435}
+.auth-success{color:#d9c0ee;background:#ca9ee612;border:1px solid #ca9ee635}
+.bank-connections{display:grid;gap:13px}
+.bank-security-note{display:flex;align-items:flex-start;gap:10px;padding:14px 15px;border-radius:12px;border:1px solid rgba(202,158,230,.18);background:rgba(202,158,230,.06);color:#b7bdc7;font-size:10px;line-height:1.65}
+.bank-security-note svg{flex-shrink:0;color:#d4aef0}
+.bank-accounts{display:grid;gap:11px}
+.bank-empty{padding:28px 22px;text-align:center}
+.bank-empty .debt-empty-icon{margin-bottom:12px}
+.bank-empty h2{font:600 16px Manrope,sans-serif;margin:0 0 7px;color:#e9eae5}
+.bank-empty p{max-width:360px;margin:0 auto;color:#929ba9;font-size:10px;line-height:1.7}
+.bank-notice,.bank-error{padding:10px 12px;border-radius:9px;font-size:10px}
+.bank-notice{color:#d7c0eb;background:#ca9ee612;border:1px solid #ca9ee633}
+.bank-error{color:#f0a4a4;background:#e7828412;border:1px solid #e7828435}
+.bank-footnote{text-align:center;color:#77818e;font-size:9px;margin:0}
+.connect-card:disabled{opacity:.65;cursor:wait}
+.bank-spinner{animation:bankSpin 1s linear infinite}
+@keyframes bankSpin{to{transform:rotate(360deg)}}
+.top-avatar{border:0;cursor:pointer}
+@media(max-width:520px){.auth-card{padding:29px 22px 24px;border-radius:19px}.auth-brand{margin-bottom:31px}.auth-shell{padding:20px 14px}}
