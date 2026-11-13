@@ -1,0 +1,33 @@
+name: Build BrewBudget for macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build universal Mac DMG
+        run: npm run dist:mac
+      - name: Upload DMG installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrewBudget-macOS
+          path: dist/*.dmg
+          if-no-files-found: error
+          retention-days: 30
