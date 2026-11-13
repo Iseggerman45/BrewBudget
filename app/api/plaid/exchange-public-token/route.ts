@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       institution_name: institutionName,
       encrypted_access_token: encryptPlaidAccessToken(exchanged.access_token),
       updated_at: new Date().toISOString(),
-    }, { onConflict: "item_id" });
+    });
     if (itemError) throw itemError;
 
     const rows = accountData.accounts.map(account => ({
