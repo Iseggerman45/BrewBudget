@@ -33,7 +33,7 @@ export default function BankConnections() {
     void loadAccounts();
     const params = new URLSearchParams(window.location.search);
     if (params.has("oauth_state_id")) {
-      const savedToken = window.localStorage.getItem("brewbudget_plaid_link_token");
+      const savedToken = window.sessionStorage.getItem("brewbudget_plaid_link_token");
       if (savedToken) {
         setLinkToken(savedToken);
         setReceivedRedirectUri(window.location.href);
@@ -56,7 +56,7 @@ export default function BankConnections() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Could not finish connecting this bank.");
       setNotice(`Connected successfully. ${result.accounts_added} account(s) added.`);
-      window.localStorage.removeItem("brewbudget_plaid_link_token");
+      window.sessionStorage.removeItem("brewbudget_plaid_link_token");
       window.history.replaceState({}, "", window.location.pathname);
       await loadAccounts();
     } catch (caught) {
@@ -72,7 +72,7 @@ export default function BankConnections() {
     token: linkToken,
     receivedRedirectUri,
     onSuccess,
-    onExit: () => { setLinkToken(null); setReceivedRedirectUri(undefined); window.localStorage.removeItem("brewbudget_plaid_link_token"); setBusy(false); },
+    onExit: () => { setLinkToken(null); setReceivedRedirectUri(undefined); window.sessionStorage.removeItem("brewbudget_plaid_link_token"); setBusy(false); },
   });
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function BankConnections() {
       const response = await fetch("/api/plaid/create-link-token", { method: "POST" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Bank connection is not available.");
-      window.localStorage.setItem("brewbudget_plaid_link_token", result.link_token);
+      window.sessionStorage.setItem("brewbudget_plaid_link_token", result.link_token);
       setLinkToken(result.link_token);
     } catch (caught) {
       setBusy(false);
