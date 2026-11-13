@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import BankConnections from "@/components/BankConnections";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
@@ -67,6 +70,7 @@ function CategoryIcon({ name }: { name: string }) {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>("Biweekly");
   const [tab, setTab] = useState<Tab>("Overview");
   const [transactions, setTransactions] = useState(initialTransactions);
@@ -184,7 +188,7 @@ export default function Dashboard() {
       <section className="main-area">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setShowMenu(true)} aria-label="Open menu"><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{tab}</strong></div></div>
-          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={15}/> Friday, November 13</div><button className="icon-button sound-toggle" aria-label={soundEnabled ? "Mute sound effects" : "Enable sound effects"} title={soundEnabled ? "Sound effects on" : "Sound effects off"} onClick={() => { setSoundEnabled(!soundEnabled); setToast(!soundEnabled ? "Sound effects on" : "Sound effects off"); }}>{soundEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button className="icon-button notification" aria-label="Notifications" onClick={() => setToast("You're all caught up")}><Bell size={18}/><i/></button><div className="top-avatar">B</div></div>
+          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={15}/> Friday, November 13</div><button className="icon-button sound-toggle" aria-label={soundEnabled ? "Mute sound effects" : "Enable sound effects"} title={soundEnabled ? "Sound effects on" : "Sound effects off"} onClick={() => { setSoundEnabled(!soundEnabled); setToast(!soundEnabled ? "Sound effects on" : "Sound effects off"); }}>{soundEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button className="icon-button notification" aria-label="Notifications" onClick={() => setToast("You're all caught up")}><Bell size={18}/><i/></button><button className="top-avatar" title="Sign out" onClick={async () => { await createClient().auth.signOut(); router.replace("/login"); router.refresh(); }}>B</button></div>
         </header>
 
         <div className="content-wrap">
@@ -248,7 +252,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> BREWBUDGET WORKSPACE</div><div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>{(tab === "Transactions" || tab === "Budgets") && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button>}</div>
   {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
   tab === "Budgets" ? <div className="subpage-categories">{categories.map(c=>{const spent=budgetSpent[c.name] ?? c.spent; return <section className="glass-card category-detail" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{background:c.color}}/>{c.name}</div><strong>{money(spent)} <span className="muted-text">/ {money(c.budget)}</span></strong></div><div className="progress-track"><div className="progress-fill" style={{width:(spent/c.budget*100)+"%",background:c.color}}/></div><div className="category-remaining">{spent<=c.budget ? `${money(c.budget-spent)} remaining` : `${money(spent-c.budget)} over budget`}</div></section>;})}</div> :
-  tab === "Accounts" ? <div className="subpage-categories"><section className="glass-card account-card"><div className="account-logo"><Landmark size={21}/></div><div><strong>Everyday Checking</strong><p>Demo Bank · Checking •• 4821</p></div><div className="account-balance">$2,684.62</div></section><section className="glass-card account-card"><div className="account-logo savings"><PiggyBank size={21}/></div><div><strong>Rainy Day Savings</strong><p>Demo Bank · Savings •• 9014</p></div><div className="account-balance">$5,200.00</div></section><button className="connect-card" onClick={() => alert("Bank connections will be added with the secure Plaid integration.")}><Plus size={18}/> Connect a bank account</button></div> :
+  tab === "Accounts" ? <BankConnections/> :
   tab === "Goals" ? <div className="subpage-categories"><section className="glass-card goal-card"><div className="goal-icon"><Heart size={20}/></div><div className="goal-main"><strong>Emergency fund</strong><p>Building a little breathing room.</p><div className="progress-track"><div className="progress-fill" style={{width:"64%",background:"#A6D189"}}/></div><div className="category-remaining">$3,200 of $5,000 saved · 64%</div></div></section><section className="glass-card goal-card"><div className="goal-icon purple"><Target size={20}/></div><div className="goal-main"><strong>Weekend getaway</strong><p>Something fun to look forward to.</p><div className="progress-track"><div className="progress-fill" style={{width:"38%",background:"#CA9EE6"}}/></div><div className="category-remaining">$380 of $1,000 saved · 38%</div></div></section></div> :
   <section className="glass-card report-placeholder"><div className="report-art"><TrendingUp size={32}/></div><h2>Your money story, over time.</h2><p>Reports will bring your spending patterns, cash flow, and savings progress together in one thoughtful view.</p></section>}
   </div>;
