@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
-  Plus, Search, Settings2, ShoppingBag, Sparkles, Target, TrendingUp, Wallet,
+  Plus, Search, Settings2, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, Volume2, VolumeX,
   Utensils, CarFront, Zap, Heart, SlidersHorizontal, ArrowLeftRight, X, Check,
   Menu, Landmark, PiggyBank, ReceiptText
 } from "lucide-react";
@@ -83,6 +83,32 @@ export default function Dashboard() {
   const [debtAmount, setDebtAmount] = useState("");
   const [paymentDebtId, setPaymentDebtId] = useState("");
   const [celebrate, setCelebrate] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [entryFeedback, setEntryFeedback] = useState(false);
+
+  function playFeedback(kind: "tap" | "success" | "payoff") {
+    if (!soundEnabled || typeof window === "undefined") return;
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const now = ctx.currentTime;
+      const notes = kind === "payoff" ? [523.25, 659.25, 783.99, 1046.5] : kind === "success" ? [659.25, 880] : [587.33];
+      notes.forEach((frequency, index) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now + index * (kind === "payoff" ? 0.13 : 0.07));
+        gain.gain.setValueAtTime(0.0001, now + index * 0.07);
+        gain.gain.exponentialRampToValueAtTime(kind === "payoff" ? 0.075 : 0.035, now + index * 0.07 + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.07 + (kind === "payoff" ? 0.32 : 0.16));
+        oscillator.connect(gain); gain.connect(ctx.destination);
+        oscillator.start(now + index * (kind === "payoff" ? 0.13 : 0.07));
+        oscillator.stop(now + index * (kind === "payoff" ? 0.13 : 0.07) + 0.34);
+      });
+      window.setTimeout(() => void ctx.close(), 1200);
+    } catch { /* Audio is an optional enhancement; the app remains fully usable without it. */ }
+  }
 
   const chartData = period === "Monthly" ? monthlyChart : biweeklyChart;
   const filteredTransactions = useMemo(() => transactions.filter(t =>
@@ -101,7 +127,7 @@ export default function Dashboard() {
       if (selectedDebt.balance > 0 && updatedBalance === 0) { setCelebrate(true); window.setTimeout(() => setCelebrate(false), 4800); setToast(`${selectedDebt.name} paid off! You did it!`); }
       else { setToast(`${money(Math.min(amount, selectedDebt.balance))} applied to ${selectedDebt.name}`); }
     }
-    setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: newCategory === "Debt payment" ? "income" : "shopping", color: newCategory === "Debt payment" ? "purple" : "mint", type: "expense" }, ...transactions]);
+    setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: newCategory === "Debt payment" ? "income" : "shopping", color: newCategory === "Debt payment" ? "purple" : "mint", type: "expense" }, ...transactions]);\n    setEntryFeedback(true); window.setTimeout(() => setEntryFeedback(false), 850);\n    if (newCategory !== "Debt payment") playFeedback("tap");
     setNewName(""); setNewAmount(""); setShowAdd(false);
     if (newCategory !== "Debt payment") setToast("Expense added to your activity");
     window.setTimeout(() => setToast(""), 3200);
@@ -111,13 +137,13 @@ export default function Dashboard() {
     e.preventDefault();
     const amount = Number(debtAmount);
     if (!debtName.trim() || !Number.isFinite(amount) || amount <= 0) return;
-    setDebts([...debts, { id: Date.now(), name: debtName.trim(), original: amount, balance: amount }]);
+    setDebts([...debts, { id: Date.now(), name: debtName.trim(), original: amount, balance: amount }]);\n    playFeedback("success");
     setDebtName(""); setDebtAmount(""); setShowDebtModal(false); setToast("Debt added to your tracker");
     window.setTimeout(() => setToast(""), 2800);
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${entryFeedback ? "entry-feedback" : ""}`}>
       <aside className={`sidebar ${showMenu ? "sidebar-open" : ""}`}>
         <div className="brand">
           <div className="brand-mark"><Coffee size={23}/><span className="steam">〰</span></div>
@@ -145,7 +171,7 @@ export default function Dashboard() {
       <section className="main-area">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setShowMenu(true)} aria-label="Open menu"><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{tab}</strong></div></div>
-          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={15}/> Friday, November 13</div><button className="icon-button notification" aria-label="Notifications" onClick={() => setToast("You're all caught up")}><Bell size={18}/><i/></button><div className="top-avatar">B</div></div>
+          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={15}/> Friday, November 13</div><button className="icon-button sound-toggle" aria-label={soundEnabled ? "Mute sound effects" : "Enable sound effects"} title={soundEnabled ? "Sound effects on" : "Sound effects off"} onClick={() => { setSoundEnabled(!soundEnabled); setToast(!soundEnabled ? "Sound effects on" : "Sound effects off"); }}>{soundEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button className="icon-button notification" aria-label="Notifications" onClick={() => setToast("You're all caught up")}><Bell size={18}/><i/></button><div className="top-avatar">B</div></div>
         </header>
 
         <div className="content-wrap">
@@ -190,7 +216,7 @@ export default function Dashboard() {
       </section>
 
       {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categories.map(c => <option key={c.name}>{c.name}</option>)}<option>Debt payment</option></select></label>{newCategory === "Debt payment" && <label>Apply payment to<select value={paymentDebtId} onChange={e => setPaymentDebtId(e.target.value)} required><option value="">Choose a debt</option>{debts.filter(d => d.balance > 0).map(d => <option key={d.id} value={d.id}>{d.name} · {money(d.balance)} left</option>)}</select></label>}<button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
-      {showDebtModal && <div className="modal-backdrop" onClick={() => setShowDebtModal(false)}><form className="expense-modal" onSubmit={addDebt} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW DEBT</div><h2>Add a debt</h2></div><button type="button" className="icon-button" onClick={() => setShowDebtModal(false)}><X size={18}/></button></div><label>What is this debt?<input autoFocus value={debtName} onChange={e => setDebtName(e.target.value)} placeholder="e.g. Student loans" required/></label><label>Starting balance<input type="number" min="0.01" step="0.01" value={debtAmount} onChange={e => setDebtAmount(e.target.value)} placeholder="10000.00" required/></label><button className="primary-button modal-submit" type="submit"><Plus size={16}/> Add debt</button><p className="demo-note">Demo mode · Your debt data is stored only in this browser session.</p></form></div>}{celebrate && <div className="debt-celebration"><div className="confetti-burst">{Array.from({length:48},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%9)*.09}s`,transform:`rotate(${i*31}deg)`}}/>)}</div><div className="celebration-card"><div className="celebration-spark"><Sparkles size={32}/></div><div className="card-label">DEBT PAID IN FULL</div><h2>You did it!</h2><p>One less weight to carry. Take a moment and celebrate this milestone.</p><button className="primary-button" onClick={() => setCelebrate(false)}>That feels amazing <Check size={16}/></button></div></div>}{toast && <div className="toast"><Check size={16}/>{toast}</div>}
+      {showDebtModal && <div className="modal-backdrop" onClick={() => setShowDebtModal(false)}><form className="expense-modal" onSubmit={addDebt} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW DEBT</div><h2>Add a debt</h2></div><button type="button" className="icon-button" onClick={() => setShowDebtModal(false)}><X size={18}/></button></div><label>What is this debt?<input autoFocus value={debtName} onChange={e => setDebtName(e.target.value)} placeholder="e.g. Student loans" required/></label><label>Starting balance<input type="number" min="0.01" step="0.01" value={debtAmount} onChange={e => setDebtAmount(e.target.value)} placeholder="10000.00" required/></label><button className="primary-button modal-submit" type="submit"><Plus size={16}/> Add debt</button><p className="demo-note">Demo mode · Your debt data is stored only in this browser session.</p></form></div>}{celebrate && <div className="debt-celebration"><div className="confetti-burst">{Array.from({length:48},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%9)*.09}s`,transform:`rotate(${i*31}deg)`}}/>)}</div><div className="celebration-card"><div className="celebration-spark"><Sparkles size={32}/></div><div className="card-label">DEBT PAID IN FULL</div><h2>You did it!</h2><p>One less weight to carry. Take a moment and celebrate this milestone.</p><button className="primary-button" onClick={() => setCelebrate(false)}>That feels amazing <Check size={16}/></button></div></div>}{toast && <div className="toast"><span className="toast-check"><Check size={15}/></span>{toast}</div>}
     </main>
   );
 }
