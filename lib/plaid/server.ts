@@ -1,5 +1,5 @@
 import "server-only";
-import { createCipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 function plaidBaseUrl() {
   const environment = process.env.PLAID_ENV ?? "sandbox";
@@ -46,4 +46,19 @@ export function encryptPlaidAccessToken(accessToken: string) {
   const encrypted = Buffer.concat([cipher.update(accessToken, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return [iv.toString("base64"), tag.toString("base64"), encrypted.toString("base64")].join(".");
+}
+
+export function decryptPlaidAccessToken(payload: string) {
+  const rawKey = process.env.PLAID_TOKEN_ENCRYPTION_KEY;
+  if (!rawKey) throw new Error("Plaid token encryption key is not configured.");
+  const key = Buffer.from(rawKey, "base64");
+  if (key.length !== 32) throw new Error("PLAID_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.");
+  const [ivText, tagText, encryptedText] = payload.split(".");
+  if (!ivText || !tagText || !encryptedText) throw new Error("Stored Plaid token is malformed.");
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivText, "base64"));
+  decipher.setAuthTag(Buffer.from(tagText, "base64"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(encryptedText, "base64")),
+    decipher.final(),
+  ]).toString("utf8");
 }
