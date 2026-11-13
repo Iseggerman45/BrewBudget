@@ -13,7 +13,8 @@ import {
 } from "recharts";
 
 type Period = "Monthly" | "Biweekly";
-type Tab = "Overview" | "Budgets" | "Transactions" | "Accounts" | "Goals" | "Reports";
+type Tab = "Overview" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
+type Debt = { id: number; name: string; original: number; balance: number };
 type Transaction = { name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
 
 const initialTransactions: Transaction[] = [
@@ -50,7 +51,7 @@ const biweeklyChart = [
 const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 const nav: { name: Tab; icon: typeof Home }[] = [
   { name: "Overview", icon: LayoutDashboard }, { name: "Budgets", icon: Wallet },
-  { name: "Transactions", icon: ArrowLeftRight }, { name: "Accounts", icon: Landmark },
+  { name: "Transactions", icon: ArrowLeftRight }, { name: "Debt", icon: CreditCard }, { name: "Accounts", icon: Landmark },
   { name: "Goals", icon: Target }, { name: "Reports", icon: TrendingUp },
 ];
 
@@ -76,6 +77,12 @@ export default function Dashboard() {
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState("Groceries");
   const [toast, setToast] = useState("");
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [showDebtModal, setShowDebtModal] = useState(false);
+  const [debtName, setDebtName] = useState("");
+  const [debtAmount, setDebtAmount] = useState("");
+  const [paymentDebtId, setPaymentDebtId] = useState("");
+  const [celebrate, setCelebrate] = useState(false);
 
   const chartData = period === "Monthly" ? monthlyChart : biweeklyChart;
   const filteredTransactions = useMemo(() => transactions.filter(t =>
@@ -86,7 +93,15 @@ export default function Dashboard() {
     e.preventDefault();
     const amount = Number(newAmount);
     if (!newName.trim() || !Number.isFinite(amount) || amount <= 0) return;
-    setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: "shopping", color: "mint", type: "expense" }, ...transactions]);
+    if (newCategory === "Debt payment") {
+      const selectedDebt = debts.find(d => String(d.id) === paymentDebtId);
+      if (!selectedDebt) { setToast("Choose a debt to apply this payment to"); return; }
+      const updatedBalance = Math.max(0, selectedDebt.balance - amount);
+      setDebts(debts.map(d => d.id === selectedDebt.id ? { ...d, balance: updatedBalance } : d));
+      if (selectedDebt.balance > 0 && updatedBalance === 0) { setCelebrate(true); window.setTimeout(() => setCelebrate(false), 4800); setToast(`${selectedDebt.name} paid off! You did it!`); }
+      else { setToast(`${money(Math.min(amount, selectedDebt.balance))} applied to ${selectedDebt.name}`); }
+    }
+    setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: newCategory === "Debt payment" ? "income" : "shopping", color: newCategory === "Debt payment" ? "purple" : "mint", type: "expense" }, ...transactions]);
     setNewName(""); setNewAmount(""); setShowAdd(false);
     setToast("Expense added to your activity");
     window.setTimeout(() => setToast(""), 2600);
@@ -161,12 +176,12 @@ export default function Dashboard() {
               <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">A LITTLE INSIGHT</span></div><h2>Your coffee habit is looking good.</h2><p>You’ve spent <strong>$38 less</strong> on coffee and dining than this time last period. Those small choices are adding up.</p><div className="insight-bottom"><span className="insight-spark">✳</span> Keep that momentum going.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
-          </> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd}/>}
+          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd}/>}
         </div>
       </section>
 
-      {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categories.map(c => <option key={c.name}>{c.name}</option>)}</select></label><button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
-      {toast && <div className="toast"><Check size={16}/>{toast}</div>}
+      {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categories.map(c => <option key={c.name}>{c.name}</option>)}<option>Debt payment</option></select></label>{newCategory === "Debt payment" && <label>Apply payment to<select value={paymentDebtId} onChange={e => setPaymentDebtId(e.target.value)} required><option value="">Choose a debt</option>{debts.filter(d => d.balance > 0).map(d => <option key={d.id} value={d.id}>{d.name} · {money(d.balance)} left</option>)}</select></label>}<button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
+      {showDebtModal && <div className="modal-backdrop" onClick={() => setShowDebtModal(false)}><form className="expense-modal" onSubmit={addDebt} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW DEBT</div><h2>Add a debt</h2></div><button type="button" className="icon-button" onClick={() => setShowDebtModal(false)}><X size={18}/></button></div><label>What is this debt?<input autoFocus value={debtName} onChange={e => setDebtName(e.target.value)} placeholder="e.g. Student loans" required/></label><label>Starting balance<input type="number" min="0.01" step="0.01" value={debtAmount} onChange={e => setDebtAmount(e.target.value)} placeholder="10000.00" required/></label><button className="primary-button modal-submit" type="submit"><Plus size={16}/> Add debt</button><p className="demo-note">Demo mode · Your debt data is stored only in this browser session.</p></form></div>}{celebrate && <div className="debt-celebration"><div className="confetti-burst">{Array.from({length:48},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%9)*.09}s`,transform:`rotate(${i*31}deg)`}}/>)}</div><div className="celebration-card"><div className="celebration-spark"><Sparkles size={32}/></div><div className="card-label">DEBT PAID IN FULL</div><h2>You did it!</h2><p>One less weight to carry. Take a moment and celebrate this milestone.</p><button className="primary-button" onClick={() => setCelebrate(false)}>That feels amazing <Check size={16}/></button></div></div>}{toast && <div className="toast"><Check size={16}/>{toast}</div>}
     </main>
   );
 }
@@ -175,8 +190,8 @@ function TransactionList({ transactions }: { transactions: Transaction[] }) {
   return <div className="transaction-list">{transactions.map((t,i) => <div className="transaction-row" key={t.name+i}><div className={`transaction-icon ${t.color}`}><CategoryIcon name={t.icon}/></div><div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div><div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div></div>)}</div>;
 }
 
-function SubPage({ tab, transactions, search, setSearch, setShowAdd }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void }) {
-  const descriptions: Record<Tab,string> = { Overview:"Your financial picture, at a glance.", Budgets:"Give every category a thoughtful spending limit.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
+function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => void; onPayment: () => void }) {\n  const total = debts.reduce((sum,d) => sum + d.balance, 0); const original = debts.reduce((sum,d) => sum + d.original, 0);\n  return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> YOUR DEBT-FREE JOURNEY</div><div className="subpage-heading"><div><h1>Debt tracker</h1><p className="subtitle">Every payment moves the number down. Every little bit counts.</p></div><button className="primary-button" onClick={onAdd}><Plus size={17}/> Add debt</button></div><div className="debt-summary-grid"><section className="glass-card debt-total-card"><div className="card-label">TOTAL DEBT REMAINING</div><div className="debt-total-value">{money(total)}</div><p>{debts.length ? `${money(Math.max(0, original-total))} paid off so far` : "Add your first debt to get started."}</p></section><section className="glass-card debt-progress-card"><div className="card-label">YOUR PROGRESS</div><div className="debt-progress-number">{original ? Math.round((original-total)/original*100) : 0}%</div><div className="progress-track"><div className="progress-fill" style={{width:(original ? (original-total)/original*100 : 0)+"%",background:"var(--purple)"}}/></div><p>of your starting debt cleared</p></section></div>{debts.length ? <div className="debt-list">{debts.map(d => <section className="glass-card debt-item" key={d.id}><div className="debt-item-top"><div className="debt-icon"><CreditCard size={19}/></div><div className="debt-title"><strong>{d.name}</strong><span>{d.balance === 0 ? "Paid in full 🎉" : "Keep chipping away"}</span></div><div className="debt-balance">{money(d.balance)}<small>remaining</small></div></div><div className="progress-track"><div className="progress-fill" style={{width:((d.original-d.balance)/d.original*100)+"%",background:"var(--purple)"}}/></div><div className="debt-item-foot"><span>{money(d.original-d.balance)} paid of {money(d.original)}</span><strong>{Math.round((d.original-d.balance)/d.original*100)}%</strong></div></section>)}</div> : <section className="glass-card debt-empty"><div className="debt-empty-icon"><CreditCard size={27}/></div><h2>Start with one debt.</h2><p>Add a student loan, car payment, credit card, or anything else you’re working to pay off. BrewBudget will keep the remaining balance moving down as you log payments.</p><button className="primary-button" onClick={onAdd}><Plus size={16}/> Add your first debt</button></section>}{debts.some(d=>d.balance>0) && <div className="debt-payment-row"><div><strong>Made a debt payment?</strong><p>Log it as an expense and apply it to the right balance.</p></div><button className="primary-button" onClick={onPayment}><Plus size={16}/> Log a payment</button></div>}</div>;\n}\n\nfunction SubPage({ tab, transactions, search, setSearch, setShowAdd }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void }) {
+  const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Give every category a thoughtful spending limit.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> BREWBUDGET WORKSPACE</div><div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>{(tab === "Transactions" || tab === "Budgets") && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button>}</div>
   {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
   tab === "Budgets" ? <div className="subpage-categories">{categories.map(c=><section className="glass-card category-detail" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{background:c.color}}/>{c.name}</div><strong>{money(c.spent)} <span className="muted-text">/ {money(c.budget)}</span></strong></div><div className="progress-track"><div className="progress-fill" style={{width:(c.spent/c.budget*100)+"%",background:c.color}}/></div><div className="category-remaining">{money(c.budget-c.spent)} remaining</div></section>)}</div> :
