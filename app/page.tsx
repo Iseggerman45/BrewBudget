@@ -127,7 +127,9 @@ export default function Dashboard() {
       if (selectedDebt.balance > 0 && updatedBalance === 0) { setCelebrate(true); window.setTimeout(() => setCelebrate(false), 4800); setToast(`${selectedDebt.name} paid off! You did it!`); }
       else { setToast(`${money(Math.min(amount, selectedDebt.balance))} applied to ${selectedDebt.name}`); }
     }
-    setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: newCategory === "Debt payment" ? "income" : "shopping", color: newCategory === "Debt payment" ? "purple" : "mint", type: "expense" }, ...transactions]);\n    setEntryFeedback(true); window.setTimeout(() => setEntryFeedback(false), 850);\n    if (newCategory !== "Debt payment") playFeedback("tap");
+    setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: newCategory === "Debt payment" ? "income" : "shopping", color: newCategory === "Debt payment" ? "purple" : "mint", type: "expense" }, ...transactions]);
+    setEntryFeedback(true); window.setTimeout(() => setEntryFeedback(false), 850);
+    if (newCategory !== "Debt payment") playFeedback("tap");
     setNewName(""); setNewAmount(""); setShowAdd(false);
     if (newCategory !== "Debt payment") setToast("Expense added to your activity");
     window.setTimeout(() => setToast(""), 3200);
@@ -137,7 +139,8 @@ export default function Dashboard() {
     e.preventDefault();
     const amount = Number(debtAmount);
     if (!debtName.trim() || !Number.isFinite(amount) || amount <= 0) return;
-    setDebts([...debts, { id: Date.now(), name: debtName.trim(), original: amount, balance: amount }]);\n    playFeedback("success");
+    setDebts([...debts, { id: Date.now(), name: debtName.trim(), original: amount, balance: amount }]);
+    playFeedback("success");
     setDebtName(""); setDebtAmount(""); setShowDebtModal(false); setToast("Debt added to your tracker");
     window.setTimeout(() => setToast(""), 2800);
   }
