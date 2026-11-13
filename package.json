@@ -2,11 +2,13 @@
   "name": "brewbudget",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "dist:mac": "electron-builder --mac dmg --universal"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -24,6 +26,47 @@
     "@types/react-dom": "^19.1.9",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.brewbudget.desktop",
+    "productName": "BrewBudget",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.finance",
+      "artifactName": "BrewBudget-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "BrewBudget",
+      "contents": [
+        {
+          "x": 130,
+          "y": 180,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   }
 }
