@@ -121,3 +121,13 @@
 @keyframes bankSpin{to{transform:rotate(360deg)}}
 .top-avatar{border:0;cursor:pointer}
 @media(max-width:520px){.auth-card{padding:29px 22px 24px;border-radius:19px}.auth-brand{margin-bottom:31px}.auth-shell{padding:20px 14px}}
+
+
+/* Social sign-in */
+.auth-social-buttons{display:grid;gap:10px;margin:2px 0 17px}
+.auth-social-button{height:45px;display:flex;align-items:center;justify-content:center;gap:11px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.055);color:#f0eee8;font-size:11px;font-weight:700;transition:background .2s,border-color .2s,transform .2s}
+.auth-social-button:hover:not(:disabled){background:rgba(255,255,255,.1);border-color:rgba(202,158,230,.42);transform:translateY(-1px)}
+.auth-social-button:disabled{opacity:.55;cursor:not-allowed}
+.auth-social-button svg{width:17px;height:17px;flex-shrink:0}
+.auth-divider{display:flex;align-items:center;gap:11px;margin:0 0 18px;color:#778291;font-size:9px}
+.auth-divider span:first-child,.auth-divider span:last-child{height:1px;flex:1;background:rgba(255,255,255,.1)}
