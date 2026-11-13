@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePlaidLink, type PlaidLinkOnSuccessMetadata } from "react-plaid-link";
+import { usePlaidLink, type PlaidLinkOnSuccess } from "react-plaid-link";
 import { Landmark, Plus, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 
 type Account = {
@@ -21,6 +21,7 @@ export default function BankConnections() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [receivedRedirectUri, setReceivedRedirectUri] = useState<string | undefined>(undefined);
 
   const loadAccounts = useCallback(async () => {
     const response = await fetch("/api/accounts", { cache: "no-store" });
@@ -28,9 +29,22 @@ export default function BankConnections() {
     if (response.ok) setAccounts(result.accounts ?? []);
   }, []);
 
-  useEffect(() => { void loadAccounts(); }, [loadAccounts]);
+  useEffect(() => {
+    void loadAccounts();
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("oauth_state_id")) {
+      const savedToken = window.localStorage.getItem("brewbudget_plaid_link_token");
+      if (savedToken) {
+        setLinkToken(savedToken);
+        setReceivedRedirectUri(window.location.href);
+      } else {
+        setError("Your bank sign-in returned, but the secure connection session expired. Please try connecting again.");
+      }
+    }
+  }, [loadAccounts]);
 
-  const onSuccess = useCallback(async (publicToken: string, metadata: PlaidLinkOnSuccessMetadata) => {
+  const onSuccess = useCallback<PlaidLinkOnSuccess>(async (publicToken, metadata) => {
+    if (!publicToken) { setError("Plaid did not return a bank connection token. Please try again."); return; }
     setBusy(true);
     setError("");
     try {
@@ -42,19 +56,23 @@ export default function BankConnections() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Could not finish connecting this bank.");
       setNotice(`Connected successfully. ${result.accounts_added} account(s) added.`);
+      window.localStorage.removeItem("brewbudget_plaid_link_token");
+      window.history.replaceState({}, "", window.location.pathname);
       await loadAccounts();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not finish connecting this bank.");
     } finally {
       setBusy(false);
       setLinkToken(null);
+      setReceivedRedirectUri(undefined);
     }
   }, [loadAccounts]);
 
   const { open, ready } = usePlaidLink({
     token: linkToken,
+    receivedRedirectUri,
     onSuccess,
-    onExit: () => { setLinkToken(null); setBusy(false); },
+    onExit: () => { setLinkToken(null); setReceivedRedirectUri(undefined); window.localStorage.removeItem("brewbudget_plaid_link_token"); setBusy(false); },
   });
 
   useEffect(() => {
@@ -69,6 +87,7 @@ export default function BankConnections() {
       const response = await fetch("/api/plaid/create-link-token", { method: "POST" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Bank connection is not available.");
+      window.localStorage.setItem("brewbudget_plaid_link_token", result.link_token);
       setLinkToken(result.link_token);
     } catch (caught) {
       setBusy(false);
