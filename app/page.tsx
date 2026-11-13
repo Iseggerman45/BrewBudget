@@ -103,8 +103,17 @@ export default function Dashboard() {
     }
     setTransactions([{ name: newName.trim(), category: newCategory, date: "Just now", amount: -amount, icon: newCategory === "Debt payment" ? "income" : "shopping", color: newCategory === "Debt payment" ? "purple" : "mint", type: "expense" }, ...transactions]);
     setNewName(""); setNewAmount(""); setShowAdd(false);
-    setToast("Expense added to your activity");
-    window.setTimeout(() => setToast(""), 2600);
+    if (newCategory !== "Debt payment") setToast("Expense added to your activity");
+    window.setTimeout(() => setToast(""), 3200);
+  }
+
+  function addDebt(e: FormEvent) {
+    e.preventDefault();
+    const amount = Number(debtAmount);
+    if (!debtName.trim() || !Number.isFinite(amount) || amount <= 0) return;
+    setDebts([...debts, { id: Date.now(), name: debtName.trim(), original: amount, balance: amount }]);
+    setDebtName(""); setDebtAmount(""); setShowDebtModal(false); setToast("Debt added to your tracker");
+    window.setTimeout(() => setToast(""), 2800);
   }
 
   return (
