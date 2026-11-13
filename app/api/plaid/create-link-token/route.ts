@@ -8,7 +8,7 @@ export async function POST() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: "Please sign in to connect a bank." }, { status: 401 });
-  if (!plaidIsConfigured()) return NextResponse.json({ error: "Secure bank connections are not enabled yet. Plaid credentials must be added by the app owner." }, { status: 503 });
+  if (!plaidIsConfigured() || !process.env.SUPABASE_SECRET_KEY || !process.env.PLAID_TOKEN_ENCRYPTION_KEY) return NextResponse.json({ error: "Secure bank connections are not fully configured yet. The app owner must add Plaid credentials, the Supabase server key, and the encryption key." }, { status: 503 });
 
   try {
     const result = await plaidRequest<{ link_token: string }>("/link/token/create", {
