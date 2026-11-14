@@ -150,10 +150,25 @@ export default function Dashboard() {
     (t.name + t.category).toLowerCase().includes(search.toLowerCase())
   ), [transactions, search]);
 
-  function addTransaction(e: FormEvent) {
+  async function addTransaction(e: FormEvent) {
     e.preventDefault();
     const amount = Number(newAmount);
     if (!newName.trim() || !Number.isFinite(amount) || amount <= 0) return;
+    if (currentUserId) {
+      const selectedCategory = categoryList.find(category => category.name === newCategory);
+      const supabase = createClient();
+      const { error } = await supabase.from("transactions").insert({
+        owner_id: currentUserId,
+        category_id: selectedCategory?.id ?? null,
+        description: newName.trim(),
+        amount,
+        transaction_type: newCategory === "Debt payment" ? "debt_payment" : "expense"
+      });
+      if (error) {
+        setToast("Couldn't save transaction: " + error.message);
+        return;
+      }
+    }
     if (newCategory === "Debt payment") {
       const selectedDebt = debts.find(d => String(d.id) === paymentDebtId);
       if (!selectedDebt) { setToast("Choose a debt to apply this payment to"); return; }
