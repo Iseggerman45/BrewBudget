@@ -326,3 +326,17 @@
 .profile-menu>button.profile-signout{color:#e6a2a2}
 .profile-menu>button.profile-signout:hover{background:#e7828412}
 .profile-menu>button.profile-signout span{font-size:16px;width:16px;text-align:center}
+
+
+/* Budget categories take priority; compact spending breakdown sits alongside */
+.budget-workspace-grid{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(270px,.85fr);gap:16px;align-items:start}
+.budget-workspace-grid .budget-category-list{min-width:0}
+.budget-workspace-grid .budget-chart-card{min-width:0;padding:18px 16px;position:sticky;top:18px}
+.budget-workspace-grid .budget-chart-card .section-heading{flex-direction:column;gap:12px}
+.budget-workspace-grid .budget-chart-wrap{height:255px;margin-top:8px}
+.budget-workspace-grid .budget-chart-summary{grid-template-columns:1fr;gap:9px;padding-top:12px}
+.budget-workspace-grid .budget-chart-summary>div{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.budget-workspace-grid .budget-chart-summary strong{margin-left:auto}
+.budget-pie-empty{min-height:220px;display:grid;place-items:center;line-height:1.6}
+@media(max-width:1050px){.budget-workspace-grid{grid-template-columns:minmax(0,1.45fr) minmax(245px,.85fr);gap:12px}}
+@media(max-width:760px){.budget-workspace-grid{grid-template-columns:1fr}.budget-workspace-grid .budget-chart-card{position:static;grid-row:2}.budget-workspace-grid .budget-chart-card .section-heading{flex-direction:row;align-items:flex-start}.budget-workspace-grid .budget-chart-wrap{height:270px}.budget-workspace-grid .budget-chart-summary{grid-template-columns:1fr 1fr}}
