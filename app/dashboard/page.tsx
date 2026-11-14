@@ -371,9 +371,8 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
         return <section className="glass-card budget-edit-card" key={category.id ?? category.name}>
           <div className="budget-edit-top"><div className="category-name"><span className="category-dot" style={{background:category.color}}/>{category.name}</div><div className="budget-actual-label"><small>ACTUAL SPENT</small><strong>{money(spent)}</strong></div></div>
-          <form className="budget-edit-form" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const input = form.elements.namedItem("budget") as HTMLInputElement; void saveBudget(category,input.value); }}>
-            <label><span>Expected budget</span><div className="budget-input-wrap"><span>$</span><input name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="Set amount"/></div></label>
-            <button className="secondary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Save budget"}</button>
+          <form className="budget-edit-form" onSubmit={event => event.preventDefault()}>
+            <label><span>Expected budget <small className="autosave-hint">· saves automatically</small></span><div className="budget-input-wrap"><span>$</span><input name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="Set amount" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></div></label>
           </form>
           <div className="progress-track"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div>
           <div className="category-remaining">{category.budget > 0 ? (spent <= category.budget ? money(category.budget-spent)+" remaining" : money(spent-category.budget)+" over budget") : "Set an expected budget to compare against actual spending"}</div>
