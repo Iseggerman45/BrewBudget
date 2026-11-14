@@ -366,3 +366,9 @@
 .adaptive-budget-toggle>span:last-child{display:grid;gap:3px}
 .adaptive-budget-toggle strong{font-size:10px;color:#d9c3e8}
 .adaptive-budget-toggle small{font-size:9px;color:#8993a0;line-height:1.4}
+
+
+/* Distinct visual symbols for each budget category */
+.budget-category-symbol{width:29px;height:29px;flex:0 0 29px;border-radius:9px;display:grid;place-items:center}
+.budget-category-symbol svg{width:15px;height:15px;stroke-width:1.9}
+.budget-table-category{gap:9px}
