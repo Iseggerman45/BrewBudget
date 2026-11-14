@@ -9,7 +9,7 @@ import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
   Plus, Search, Settings2, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, Volume2, VolumeX,
-  Utensils, CarFront, Zap, Heart, SlidersHorizontal, ArrowLeftRight, X, Check,
+  Utensils, CarFront, Zap, Heart, SlidersHorizontal, ArrowLeftRight, X, Check, Droplet, Fuel, Wifi, Ticket, UserRound, Gift,
   Menu, Landmark, PiggyBank, ReceiptText, Trash2
 } from "lucide-react";
 import {
@@ -37,11 +37,19 @@ const nav: { name: Tab; icon: typeof Home }[] = [
 function CategoryIcon({ name }: { name: string }) {
   const common = { size: 17, strokeWidth: 1.8 };
   if (name === "home") return <Home {...common}/>;
-  if (name === "shopping") return <ShoppingBag {...common}/>;
+  if (name === "shopping" || name === "groceries") return <ShoppingBag {...common}/>;
   if (name === "coffee") return <Coffee {...common}/>;
-  if (name === "car") return <CarFront {...common}/>;
-  if (name === "zap") return <Zap {...common}/>;
+  if (name === "car" || name === "fuel") return <CarFront {...common}/>;
+  if (name === "zap" || name === "electric") return <Zap {...common}/>;
+  if (name === "gas") return <Fuel {...common}/>;
+  if (name === "water") return <Droplet {...common}/>;
+  if (name === "wifi") return <Wifi {...common}/>;
+  if (name === "ticket") return <Ticket {...common}/>;
+  if (name === "heart") return <Heart {...common}/>;
+  if (name === "user") return <UserRound {...common}/>;
+  if (name === "gift") return <Gift {...common}/>;
   if (name === "income") return <ArrowDownLeft {...common}/>;
+  if (name === "credit-card") return <CreditCard {...common}/>;
   return <ReceiptText {...common}/>;
 }
 
@@ -97,9 +105,12 @@ export default function Dashboard() {
         if (!active) return;
         if (!savedCategories?.length) {
           const defaults = [
-            ["Housing","home","#A6D189"],["Utilities","zap","#E78284"],["Groceries","shopping","#8CAAEE"],
-            ["Transportation","car","#CA9EE6"],["Insurance","shield","#E5A86A"],["Phone & internet","wifi","#99D1DB"],
-            ["Coffee & dining","coffee","#E5A86A"],["Shopping","bag","#F4B8E4"]
+            ["Mortgage / rent","home","#A6D189"],["Electricity","electric","#E5A86A"],["Natural gas","gas","#E78284"],
+            ["Water & sewer","water","#8CAAEE"],["Trash","receipt","#99D1DB"],["Internet","wifi","#CA9EE6"],
+            ["Groceries","groceries","#A6D189"],["Gas & fuel","fuel","#E5A86A"],["Restaurants","coffee","#CA9EE6"],
+            ["Shopping","shopping","#F4B8E4"],["Entertainment","ticket","#BABB F1".replace(" ","")],["Insurance","shield","#E5A86A"],
+            ["Phone","wifi","#99D1DB"],["Health & medical","heart","#EA999C"],["Personal care","user","#C6D0F5"],
+            ["Giving","gift","#F2D5CF"],["Savings","piggy","#A6D189"],["Debt payments","credit-card","#CA9EE6"]
           ];
           const { data: created, error: createError } = await supabase.from("categories").insert(defaults.map(([name,icon,color]) => ({
             owner_id:user.id, name, icon, color, category_type:"expense"
@@ -443,7 +454,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
             const remaining = category.budget - spent;
             const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
             return <section className="budget-table-row" key={category.id ?? category.name}>
-              <div className="budget-table-category"><span className="category-dot" style={{background:category.color}}/><strong>{category.name}</strong><div className="budget-row-progress"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div><button type="button" className="budget-delete-category" onClick={() => void deleteCategory(category)} disabled={savingCategory} aria-label={`Remove ${category.name} category`} title="Remove category"><Trash2 size={14}/></button></div>
+              <div className="budget-table-category"><span className="budget-category-symbol" style={{color:category.color,background:category.color+"20"}}><CategoryIcon name={category.icon}/></span><strong>{category.name}</strong><div className="budget-row-progress"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div><button type="button" className="budget-delete-category" onClick={() => void deleteCategory(category)} disabled={savingCategory} aria-label={`Remove ${category.name} category`} title="Remove category"><Trash2 size={14}/></button></div>
               <label className="budget-planned-cell"><span className="mobile-column-label">{budgetPeriod === "monthly" ? "PLANNED / MONTH" : "PLANNED / PAYCHECK"}</span><span className="budget-currency">$</span><input key={(category.id ?? category.name)+"-"+budgetPeriod} aria-label={"Planned budget "+(budgetPeriod === "monthly" ? "per month" : "per paycheck")+" for "+category.name} name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="0" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></label>
               <div className="budget-number-cell"><span className="mobile-column-label">SPENT</span><strong>{money(spent)}</strong></div>
               <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{category.budget > 0 ? money(remaining) : "—"}</strong></div>
