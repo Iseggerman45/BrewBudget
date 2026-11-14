@@ -435,3 +435,13 @@
 .bill-row-icon{flex-shrink:0}
 @media(max-width:900px){.bill-symbol-picker .category-symbol-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(max-width:520px){.bill-symbol-picker .category-symbol-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:220px}}
+
+
+/* Fast, adaptive search for category and bill symbols */
+.symbol-search{height:36px;display:flex;align-items:center;gap:9px;margin:0 0 10px;padding:0 10px;border:1px solid rgba(202,158,230,.2);border-radius:9px;background:rgba(12,17,24,.42);color:#9d88b2;transition:border-color .18s,box-shadow .18s}
+.symbol-search:focus-within{border-color:rgba(202,158,230,.62);box-shadow:0 0 0 3px rgba(202,158,230,.09)}
+.symbol-search input{width:100%;min-width:0;height:100%;border:0!important;outline:0;background:transparent!important;color:#edf0f5!important;font:inherit!important;font-size:10px!important;box-shadow:none!important}
+.symbol-search input::placeholder{color:#758092}
+.symbol-search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.symbol-search>button{width:23px;height:23px;flex:0 0 23px;display:grid;place-items:center;border:0;border-radius:6px;background:rgba(255,255,255,.07);color:#aeb6c3;cursor:pointer}
+.symbol-no-results{grid-column:1/-1;padding:16px 8px;color:#8993a2;text-align:center;font-size:10px}
