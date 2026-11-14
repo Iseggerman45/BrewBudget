@@ -272,3 +272,5 @@
   .add-category-fields{grid-template-columns:1fr}
   .add-category-fields .primary-button{grid-column:1}
 }
+
+.autosave-hint{color:#8792a1;font-size:9px;font-weight:400;letter-spacing:0}
