@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [showAdd, setShowAdd] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [newName, setNewName] = useState("");
   const [newAmount, setNewAmount] = useState("");
@@ -234,7 +235,14 @@ export default function Dashboard() {
       <section className="main-area">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setShowMenu(true)} aria-label="Open menu"><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{tab}</strong></div></div>
-          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={15}/> Friday, November 13</div><button className="icon-button sound-toggle" aria-label={soundEnabled ? "Mute sound effects" : "Enable sound effects"} title={soundEnabled ? "Sound effects on" : "Sound effects off"} onClick={() => { setSoundEnabled(!soundEnabled); setToast(!soundEnabled ? "Sound effects on" : "Sound effects off"); }}>{soundEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button className="icon-button notification" aria-label="Notifications" onClick={() => setToast("You're all caught up")}><Bell size={18}/><i/></button><button className="top-avatar" title="Sign out" onClick={async () => { await createClient().auth.signOut(); router.replace("/login"); router.refresh(); }}>B</button></div>
+          <div className="topbar-actions"><div className="date-chip"><CalendarDays size={15}/> Friday, November 13</div><button className="icon-button sound-toggle" aria-label={soundEnabled ? "Mute sound effects" : "Enable sound effects"} title={soundEnabled ? "Sound effects on" : "Sound effects off"} onClick={() => { setSoundEnabled(!soundEnabled); setToast(!soundEnabled ? "Sound effects on" : "Sound effects off"); }}>{soundEnabled ? <Volume2 size={17}/> : <VolumeX size={17}/>}</button><button className="icon-button notification" aria-label="Notifications" onClick={() => setToast("You're all caught up")}><Bell size={18}/><i/></button><div className="profile-menu-wrap">
+            <button className="top-avatar" title="Account menu" aria-label="Open account menu" aria-haspopup="menu" aria-expanded={showProfileMenu} onClick={() => setShowProfileMenu(value => !value)}>B</button>
+            {showProfileMenu && <div className="profile-menu" role="menu">
+              <div className="profile-menu-heading"><strong>My account</strong><span>Manage your BrewBudget profile</span></div>
+              <button type="button" role="menuitem" onClick={() => { setShowProfileMenu(false); setToast("Account settings are coming soon"); }}><Settings2 size={16}/> Account settings</button>
+              <button type="button" role="menuitem" className="profile-signout" onClick={async () => { setShowProfileMenu(false); await createClient().auth.signOut(); router.replace("/login"); router.refresh(); }}><span>↪</span> Sign out</button>
+            </div>}
+          </div></div>
         </header>
 
         <div className="content-wrap">
