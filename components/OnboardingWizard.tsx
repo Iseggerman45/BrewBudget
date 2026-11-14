@@ -9,11 +9,13 @@ type BudgetCategory = { name: string; icon: string; color: string; selected: boo
 type Bill = { name: string; amount: string; due_day: string; frequency: string };
 
 const starterCategories = [
-  ["Housing", "home", "#A6D189"], ["Utilities", "zap", "#E78284"],
-  ["Groceries", "shopping", "#8CAAEE"], ["Transportation", "car", "#CA9EE6"],
-  ["Insurance", "shield", "#E5A86A"], ["Phone & internet", "wifi", "#99D1DB"],
-  ["Coffee & dining", "coffee", "#E5A86A"], ["Shopping", "bag", "#F4B8E4"],
-  ["Entertainment", "ticket", "#BABB F1".replace(" ", "")], ["Health & medical", "heart", "#EA999C"],
+  ["Mortgage / rent", "home", "#A6D189"], ["Electricity", "electric", "#E5A86A"],
+  ["Natural gas", "gas", "#E78284"], ["Water & sewer", "water", "#8CAAEE"],
+  ["Trash", "receipt", "#99D1DB"], ["Internet", "wifi", "#CA9EE6"],
+  ["Groceries", "groceries", "#A6D189"], ["Gas & fuel", "fuel", "#E5A86A"],
+  ["Restaurants", "coffee", "#CA9EE6"], ["Shopping", "shopping", "#F4B8E4"],
+  ["Entertainment", "ticket", "#BABB F1".replace(" ", "")], ["Insurance", "shield", "#E5A86A"],
+  ["Phone", "wifi", "#99D1DB"], ["Health & medical", "heart", "#EA999C"],
   ["Personal care", "user", "#C6D0F5"], ["Giving", "gift", "#F2D5CF"],
   ["Savings", "piggy", "#A6D189"], ["Debt payments", "credit-card", "#CA9EE6"],
 ] as const;
