@@ -310,3 +310,19 @@
 .budget-table-row:hover .budget-delete-category,.budget-delete-category:focus-visible{opacity:1}
 .budget-delete-category:hover{color:#ee9a9a;border-color:#ee9a9a44;background:#ee9a9a12}
 .budget-delete-category:disabled{opacity:.3;cursor:wait}
+
+
+/* Account menu */
+.profile-menu-wrap{position:relative;display:flex;align-items:center}
+.profile-menu-wrap .top-avatar{transition:box-shadow .2s,transform .2s}
+.profile-menu-wrap .top-avatar:hover,.profile-menu-wrap .top-avatar[aria-expanded="true"]{box-shadow:0 0 0 3px rgba(202,158,230,.2);transform:translateY(-1px)}
+.profile-menu{position:absolute;z-index:25;right:0;top:calc(100% + 12px);width:238px;padding:8px;border:1px solid rgba(231,237,247,.13);border-radius:14px;background:rgba(34,41,51,.97);backdrop-filter:blur(22px);box-shadow:0 18px 48px #0008;animation:fadeUp .16s ease both}
+.profile-menu-heading{display:grid;gap:4px;padding:10px 10px 12px;border-bottom:1px solid #ffffff12;margin-bottom:6px}
+.profile-menu-heading strong{font:600 12px Manrope,sans-serif;color:#eeeDE7}
+.profile-menu-heading span{font-size:10px;color:#8993a0}
+.profile-menu>button{width:100%;height:38px;display:flex;align-items:center;gap:10px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:#d9dce2;text-align:left;font-size:11px}
+.profile-menu>button:hover{background:#ffffff0b;color:#fff}
+.profile-menu>button svg{color:#caa7e5}
+.profile-menu>button.profile-signout{color:#e6a2a2}
+.profile-menu>button.profile-signout:hover{background:#e7828412}
+.profile-menu>button.profile-signout span{font-size:16px;width:16px;text-align:center}
