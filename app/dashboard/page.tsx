@@ -366,18 +366,20 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         {categories.length ? <div className="budget-chart-wrap"><ResponsiveContainer width="100%" height={260}><BarChart data={categories} margin={{top:12,right:8,left:0,bottom:8}} barGap={5}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff12" vertical={false}/><XAxis dataKey="name" tick={{fill:"#9ba5b4",fontSize:10}} axisLine={false} tickLine={false}/><YAxis tick={{fill:"#8792a1",fontSize:10}} axisLine={false} tickLine={false} tickFormatter={(value)=>"$"+value}/><Tooltip contentStyle={{background:"#202733",border:"1px solid #ffffff20",borderRadius:10,color:"#f2f0e9",fontSize:11}} formatter={(value)=>money(Number(value))}/><Legend wrapperStyle={{fontSize:10,color:"#aab2bf"}}/><Bar dataKey="budget" name="Budgeted (expected)" fill="#CA9EE6" radius={[5,5,0,0]}/><Bar dataKey="spent" name="Spent (actual)" fill="#8CAAEE" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div> : <div className="empty-state">Add a category to start planning your spending.</div>}
         <div className="budget-chart-summary"><div><span className="budget-legend-dot expected-dot"/> <small>Total budgeted</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0))}</strong></div><div><span className="budget-legend-dot actual-dot"/> <small>Actual spent</small><strong>{money(categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div><div><small>Remaining</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0)-categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div></div>
       </section>
-      <div className="budget-category-list">{categories.map(category => {
-        const spent = budgetSpent[category.name] ?? category.spent;
-        const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
-        return <section className="glass-card budget-edit-card" key={category.id ?? category.name}>
-          <div className="budget-edit-top"><div className="category-name"><span className="category-dot" style={{background:category.color}}/>{category.name}</div><div className="budget-actual-label"><small>ACTUAL SPENT</small><strong>{money(spent)}</strong></div></div>
-          <form className="budget-edit-form" onSubmit={event => event.preventDefault()}>
-            <label><span>Expected budget <small className="autosave-hint">· saves automatically</small></span><div className="budget-input-wrap"><span>$</span><input name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="Set amount" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></div></label>
-          </form>
-          <div className="progress-track"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div>
-          <div className="category-remaining">{category.budget > 0 ? (spent <= category.budget ? money(category.budget-spent)+" remaining" : money(spent-category.budget)+" over budget") : "Set an expected budget to compare against actual spending"}</div>
-        </section>;
-      })}</div>
+      <div className="budget-category-list"><div className="budget-table">
+        <div className="budget-table-head"><span>CATEGORY</span><span>PLANNED</span><span>SPENT</span><span>REMAINING</span></div>
+        {categories.map(category => {
+          const spent = budgetSpent[category.name] ?? category.spent;
+          const remaining = category.budget - spent;
+          const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
+          return <section className="budget-table-row" key={category.id ?? category.name}>
+            <div className="budget-table-category"><span className="category-dot" style={{background:category.color}}/><strong>{category.name}</strong><div className="budget-row-progress"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div></div>
+            <label className="budget-planned-cell"><span className="mobile-column-label">PLANNED</span><span className="budget-currency">$</span><input aria-label={"Planned budget for "+category.name} name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="0" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></label>
+            <div className="budget-number-cell"><span className="mobile-column-label">SPENT</span><strong>{money(spent)}</strong></div>
+            <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{category.budget > 0 ? money(remaining) : "—"}</strong></div>
+          </section>;
+        })}
+      </div>
       {budgetMessage && <p className="budget-feedback">{budgetMessage}</p>}
     </> :
     tab === "Accounts" ? <BankConnections/> :
