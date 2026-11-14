@@ -146,11 +146,42 @@ export default function OnboardingWizard({ userId, onComplete }: Props) {
 
   async function skip() {
     setSaving(true);
-    const { error: saveError } = await supabase.from("profiles")
-      .upsert({ id: userId, onboarding_completed: true, updated_at: new Date().toISOString() });
-    setSaving(false);
-    if (saveError) setError(saveError.message);
-    else onComplete();
+    setError("");
+    try {
+      const { data: existingHousehold, error: lookupError } = await supabase
+        .from("households").select("id").eq("created_by", userId).limit(1).maybeSingle();
+      if (lookupError) throw lookupError;
+      let householdId = existingHousehold?.id;
+      if (!householdId) {
+        const { data: household, error: householdError } = await supabase
+          .from("households").insert({ name: "My Budget", created_by: userId }).select("id").single();
+        if (householdError) throw householdError;
+        householdId = household.id;
+      }
+      const { error: memberError } = await supabase.from("household_members")
+        .upsert({ household_id: householdId, user_id: userId, role: "owner" });
+      if (memberError) throw memberError;
+      const { data: existingCategories, error: categoryLookupError } = await supabase
+        .from("categories").select("id").eq("owner_id", userId).eq("category_type", "expense").limit(1);
+      if (categoryLookupError) throw categoryLookupError;
+      if (!existingCategories?.length) {
+        const { error: categoryError } = await supabase.from("categories").insert(
+          starterCategories.slice(0, 8).map(([name, icon, color]) => ({
+            owner_id: userId, household_id: householdId, name, icon, color, category_type: "expense"
+          }))
+        );
+        if (categoryError) throw categoryError;
+      }
+      const { error: saveError } = await supabase.from("profiles").upsert({
+        id: userId, onboarding_completed: true, updated_at: new Date().toISOString()
+      });
+      if (saveError) throw saveError;
+      onComplete();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "We couldn't finish setup. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
