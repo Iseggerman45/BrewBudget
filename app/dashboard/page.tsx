@@ -45,6 +45,8 @@ function CategoryIcon({ name }: { name: string }) {
   if (name === "water") return <Droplet {...common}/>;
   if (name === "wifi") return <Wifi {...common}/>;
   if (name === "ticket") return <Ticket {...common}/>;
+  if (name === "trash") return <Trash2 {...common}/>;
+  if (name === "piggy") return <PiggyBank {...common}/>;
   if (name === "heart") return <Heart {...common}/>;
   if (name === "user") return <UserRound {...common}/>;
   if (name === "gift") return <Gift {...common}/>;
@@ -106,7 +108,7 @@ export default function Dashboard() {
         if (!savedCategories?.length) {
           const defaults = [
             ["Mortgage / rent","home","#A6D189"],["Electricity","electric","#E5A86A"],["Natural gas","gas","#E78284"],
-            ["Water & sewer","water","#8CAAEE"],["Trash","receipt","#99D1DB"],["Internet","wifi","#CA9EE6"],
+            ["Water & sewer","water","#8CAAEE"],["Trash","trash","#99D1DB"],["Internet","wifi","#CA9EE6"],
             ["Groceries","groceries","#A6D189"],["Gas & fuel","fuel","#E5A86A"],["Restaurants","coffee","#CA9EE6"],
             ["Shopping","shopping","#F4B8E4"],["Entertainment","ticket","#BABB F1".replace(" ","")],["Insurance","shield","#E5A86A"],
             ["Phone","wifi","#99D1DB"],["Health & medical","heart","#EA999C"],["Personal care","user","#C6D0F5"],
