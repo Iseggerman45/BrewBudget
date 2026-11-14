@@ -445,3 +445,10 @@
 .symbol-search input::-webkit-search-cancel-button{-webkit-appearance:none}
 .symbol-search>button{width:23px;height:23px;flex:0 0 23px;display:grid;place-items:center;border:0;border-radius:6px;background:rgba(255,255,255,.07);color:#aeb6c3;cursor:pointer}
 .symbol-no-results{grid-column:1/-1;padding:16px 8px;color:#8993a2;text-align:center;font-size:10px}
+
+
+/* Clear explanation for persistent, adaptive budget amounts */
+.adaptive-budget-note{display:flex;flex-direction:column;gap:4px;max-width:270px;padding:10px 12px;border:1px solid rgba(202,158,230,.16);border-radius:11px;background:rgba(202,158,230,.055)}
+.adaptive-budget-note strong{color:#d9c2eb;font-size:10px;font-weight:700;letter-spacing:.04em}
+.adaptive-budget-note small{color:#929baa;font-size:9px;line-height:1.55}
+@media(max-width:700px){.adaptive-budget-note{max-width:none}}
