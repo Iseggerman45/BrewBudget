@@ -20,13 +20,7 @@ type Tab = "Overview" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goal
 type Debt = { id: number; name: string; original: number; balance: number };
 type Transaction = { name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
 
-const initialTransactions: Transaction[] = [
-  { name: "Trader Joe’s", category: "Groceries", date: "Today · 9:42 AM", amount: -64.28, icon: "shopping", color: "mint", type: "expense" },
-  { name: "Blue Bottle Coffee", category: "Coffee & dining", date: "Today · 8:15 AM", amount: -8.50, icon: "coffee", color: "amber", type: "expense" },
-  { name: "Paycheck · Acme Co.", category: "Income", date: "Yesterday", amount: 2_140.00, icon: "income", color: "blue", type: "income" },
-  { name: "Shell", category: "Transportation", date: "Nov 11", amount: -42.16, icon: "car", color: "purple", type: "expense" },
-  { name: "Electric Company", category: "Utilities", date: "Nov 10", amount: -86.40, icon: "zap", color: "rose", type: "expense" },
-];
+const initialTransactions: Transaction[] = [];
 
 const categories = [
   { name: "Housing", spent: 0, budget: 0, color: "#A6D189", icon: "home" },
@@ -36,20 +30,8 @@ const categories = [
   { name: "Utilities", spent: 0, budget: 0, color: "#E78284", icon: "zap" },
 ];
 
-const monthlyChart = [
-  { day: "1", income: 340, spending: 190 }, { day: "4", income: 480, spending: 330 },
-  { day: "7", income: 620, spending: 410 }, { day: "10", income: 720, spending: 560 },
-  { day: "13", income: 940, spending: 680 }, { day: "16", income: 1080, spending: 810 },
-  { day: "19", income: 1250, spending: 930 }, { day: "22", income: 1390, spending: 1110 },
-  { day: "25", income: 1510, spending: 1280 }, { day: "28", income: 1780, spending: 1450 },
-  { day: "30", income: 2140, spending: 1620 },
-];
-const biweeklyChart = [
-  { day: "Payday", income: 2140, spending: 120 }, { day: "+2", income: 2140, spending: 260 },
-  { day: "+4", income: 2140, spending: 430 }, { day: "+6", income: 2140, spending: 590 },
-  { day: "+8", income: 2140, spending: 710 }, { day: "+10", income: 2140, spending: 940 },
-  { day: "+12", income: 2140, spending: 1110 }, { day: "+14", income: 2140, spending: 1290 },
-];
+const monthlyChart: { day: string; income: number; spending: number }[] = [];
+const biweeklyChart: { day: string; income: number; spending: number }[] = [];
 
 const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 const nav: { name: Tab; icon: typeof Home }[] = [
@@ -202,16 +184,16 @@ export default function Dashboard() {
             <div className="period-row"><div className="period-control"><button className={period === "Monthly" ? "selected" : ""} onClick={() => setPeriod("Monthly")}>Monthly</button><button className={period === "Biweekly" ? "selected" : ""} onClick={() => setPeriod("Biweekly")}>Biweekly</button></div><button className="period-date">Nov 1 – Nov 14 <ChevronDown size={14}/></button><span className="period-note"><span className="live-dot"/> {period === "Biweekly" ? "Pay period · 4 days left" : "Monthly overview"}</span></div>
 
             <div className="summary-grid">
-              <div className="glass-card balance-card"><div className="card-top"><span className="card-label">AVAILABLE TO SPEND</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$1,284<span>.62</span></div><div className="balance-foot"><span className="positive-pill"><TrendingUp size={13}/> On track</span><span className="muted-text">of $2,140 income</span></div><div className="balance-glow"/></div>
-              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">INCOME THIS PERIOD</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">$2,140<span>.00</span></div><div className="metric-foot"><span className="metric-caption">2 deposits this month</span><span className="trend-up">+8.4%</span></div></div>
-              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">SPENT THIS PERIOD</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$855<span>.38</span></div><div className="metric-foot"><span className="metric-caption">40% of your budget</span><span className="trend-neutral">Looking good</span></div></div>
+              <div className="glass-card balance-card"><div className="card-top"><span className="card-label">AVAILABLE TO SPEND</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$0<span>.00</span></div><div className="balance-foot"><span className="muted-text">Add income and budgets to get started</span></div><div className="balance-glow"/></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">INCOME THIS PERIOD</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">No income recorded yet</span></div></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">SPENT THIS PERIOD</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">No expenses recorded yet</span></div></div>
             </div>
 
             <div className="dashboard-grid">
               <section className="glass-card chart-card">
                 <div className="section-heading"><div><div className="card-label">YOUR CASH FLOW</div><h2>Money in, money out</h2><p>See how your spending is moving over time.</p></div><button className="more-button"><Ellipsis size={20}/></button></div>
-                <div className="chart-legend"><span><i className="legend-income"/> Income</span><span><i className="legend-spending"/> Spending</span><span className="chart-total">{period === "Biweekly" ? "$2,140" : "$4,280"} <small>income</small></span></div>
-                <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 10, right: 5, left: -22, bottom: 0 }}><defs><linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#A6D189" stopOpacity={0.22}/><stop offset="95%" stopColor="#A6D189" stopOpacity={0}/></linearGradient><linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8CAAEE" stopOpacity={0.16}/><stop offset="95%" stopColor="#8CAAEE" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#ffffff" strokeOpacity={0.055} vertical={false}/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }}/><YAxis axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }} tickFormatter={(v) => "$"+v}/><Tooltip contentStyle={{ background: "#202630", border: "1px solid #ffffff20", borderRadius: 12, color: "#F2F0E9", fontSize: 12 }} formatter={(v) => money(Number(v))}/><Area type="monotone" dataKey="income" stroke="#A6D189" strokeWidth={2.4} fill="url(#incomeFill)" activeDot={{ r: 4 }}/><Area type="monotone" dataKey="spending" stroke="#8CAAEE" strokeWidth={2.4} fill="url(#spendFill)" activeDot={{ r: 4 }}/></AreaChart></ResponsiveContainer></div>
+                {chartData.length ? <><div className="chart-legend"><span><i className="legend-income"/> Income</span><span><i className="legend-spending"/> Spending</span></div>
+                <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 10, right: 5, left: -22, bottom: 0 }}><defs><linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#A6D189" stopOpacity={0.22}/><stop offset="95%" stopColor="#A6D189" stopOpacity={0}/></linearGradient><linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8CAAEE" stopOpacity={0.16}/><stop offset="95%" stopColor="#8CAAEE" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#ffffff" strokeOpacity={0.055} vertical={false}/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }}/><YAxis axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }} tickFormatter={(v) => "$"+v}/><Tooltip contentStyle={{ background: "#202630", border: "1px solid #ffffff20", borderRadius: 12, color: "#F2F0E9", fontSize: 12 }} formatter={(v) => money(Number(v))}/><Area type="monotone" dataKey="income" stroke="#A6D189" strokeWidth={2.4} fill="url(#incomeFill)" activeDot={{ r: 4 }}/><Area type="monotone" dataKey="spending" stroke="#8CAAEE" strokeWidth={2.4} fill="url(#spendFill)" activeDot={{ r: 4 }}/></AreaChart></ResponsiveContainer></div></> : <div className="empty-state">Your cash flow chart will appear once you add income or expenses.</div>}
               </section>
 
               <section className="glass-card budget-card">
@@ -224,9 +206,9 @@ export default function Dashboard() {
             <div className="bottom-grid">
               <section className="glass-card transactions-card">
                 <div className="section-heading"><div><div className="card-label">THE LATEST</div><h2>Recent transactions</h2></div><button className="text-link" onClick={() => setTab("Transactions")}>See all <ChevronRight size={15}/></button></div>
-                <TransactionList transactions={transactions.slice(0,4)}/>
+                {transactions.length ? <TransactionList transactions={transactions.slice(0,4)}/> : <div className="empty-state">No transactions yet. Add your first expense to get started.</div>}
               </section>
-              <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">A LITTLE INSIGHT</span></div><h2>Your coffee habit is looking good.</h2><p>You’ve spent <strong>$38 less</strong> on coffee and dining than this time last period. Those small choices are adding up.</p><div className="insight-bottom"><span className="insight-spark">✳</span> Keep that momentum going.</div></section>
+              <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Start with what matters most.</h2><p>Add your first income or expense, then create a budget that reflects how you want to use your money.</p><div className="insight-bottom"><span className="insight-spark">✳</span> A little progress adds up.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
           </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent}/>}
