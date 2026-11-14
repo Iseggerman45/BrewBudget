@@ -24,14 +24,6 @@ type CategoryItem = { id?: string; name: string; spent: number; budget: number; 
 
 const initialTransactions: Transaction[] = [];
 
-const categories = [
-  { name: "Housing", spent: 0, budget: 0, color: "#A6D189", icon: "home" },
-  { name: "Groceries", spent: 0, budget: 0, color: "#8CAAEE", icon: "shopping" },
-  { name: "Coffee & dining", spent: 0, budget: 0, color: "#E5A86A", icon: "coffee" },
-  { name: "Transportation", spent: 0, budget: 0, color: "#CA9EE6", icon: "car" },
-  { name: "Utilities", spent: 0, budget: 0, color: "#E78284", icon: "zap" },
-];
-
 const monthlyChart: { day: string; income: number; spending: number }[] = [];
 const biweeklyChart: { day: string; income: number; spending: number }[] = [];
 
@@ -257,7 +249,7 @@ export default function Dashboard() {
 
       {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categoryList.map(c => <option key={c.name}>{c.name}</option>)}<option>Debt payment</option></select></label>{newCategory === "Debt payment" && <label>Apply payment to<select value={paymentDebtId} onChange={e => setPaymentDebtId(e.target.value)} required><option value="">Choose a debt</option>{debts.filter(d => d.balance > 0).map(d => <option key={d.id} value={d.id}>{d.name} · {money(d.balance)} left</option>)}</select></label>}<button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
       {showDebtModal && <div className="modal-backdrop" onClick={() => setShowDebtModal(false)}><form className="expense-modal" onSubmit={addDebt} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW DEBT</div><h2>Add a debt</h2></div><button type="button" className="icon-button" onClick={() => setShowDebtModal(false)}><X size={18}/></button></div><label>What is this debt?<input autoFocus value={debtName} onChange={e => setDebtName(e.target.value)} placeholder="e.g. Student loans" required/></label><label>Starting balance<input type="number" min="0.01" step="0.01" value={debtAmount} onChange={e => setDebtAmount(e.target.value)} placeholder="10000.00" required/></label><button className="primary-button modal-submit" type="submit"><Plus size={16}/> Add debt</button><p className="demo-note">Demo mode · Your debt data is stored only in this browser session.</p></form></div>}{celebrate && <div className="debt-celebration"><div className="confetti-burst">{Array.from({length:48},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%9)*.09}s`,transform:`rotate(${i*31}deg)`}}/>)}</div><div className="celebration-card"><div className="celebration-spark"><Sparkles size={32}/></div><div className="card-label">DEBT PAID IN FULL</div><h2>You did it!</h2><p>One less weight to carry. Take a moment and celebrate this milestone.</p><button className="primary-button" onClick={() => setCelebrate(false)}>That feels amazing <Check size={16}/></button></div></div>}{toast && <div className="toast"><span className="toast-check"><Check size={15}/></span>{toast}</div>}
-      {showOnboarding && currentUserId && <OnboardingWizard userId={currentUserId} onComplete={() => setShowOnboarding(false)}/>}
+      {showOnboarding && currentUserId && <OnboardingWizard userId={currentUserId} onComplete={() => window.location.reload()}/>}
     </main>
   );
 }
