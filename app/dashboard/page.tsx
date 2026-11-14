@@ -10,7 +10,7 @@ import {
   ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
   Plus, Search, Settings2, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, Volume2, VolumeX,
   Utensils, CarFront, Zap, Heart, SlidersHorizontal, ArrowLeftRight, X, Check, Droplet, Fuel, Wifi, Ticket, UserRound, Gift,
-  Menu, Landmark, PiggyBank, ReceiptText, Trash2, Building2, Lightbulb, Flame, Recycle, Smartphone, ShoppingCart, Store, Pizza, Plane, PawPrint, Baby, GraduationCap, BookOpen, Shirt, Dumbbell, Gamepad2, Music, Film, Tv, BriefcaseBusiness, Wrench, Umbrella, Bike, Bus, TrainFront, ParkingCircle, Scissors, PartyPopper, Sprout, Leaf, Package, Shield, WalletCards, Banknote, type LucideIcon
+  Menu, Landmark, PiggyBank, ReceiptText, Trash2, Pencil, Building2, Lightbulb, Flame, Recycle, Smartphone, ShoppingCart, Store, Pizza, Plane, PawPrint, Baby, GraduationCap, BookOpen, Shirt, Dumbbell, Gamepad2, Music, Film, Tv, BriefcaseBusiness, Wrench, Umbrella, Bike, Bus, TrainFront, ParkingCircle, Scissors, PartyPopper, Sprout, Leaf, Package, Shield, WalletCards, Banknote, type LucideIcon
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -35,7 +35,7 @@ const nav: { name: Tab; icon: typeof Home }[] = [
 ];
 
 const categorySymbolOptions: { name: string; label: string; icon: LucideIcon }[] = [
-  {name:"receipt",label:"Receipt",icon:ReceiptText},{name:"home",label:"Home",icon:Home},{name:"building",label:"Building",icon:Building2},
+  {name:"receipt",label:"Receipt",icon:ReceiptText},{name:"calendar",label:"Calendar",icon:CalendarDays},{name:"home",label:"Home",icon:Home},{name:"building",label:"Building",icon:Building2},
   {name:"zap",label:"Electric",icon:Zap},{name:"lightbulb",label:"Light",icon:Lightbulb},{name:"flame",label:"Heat",icon:Flame},
   {name:"gas",label:"Fuel",icon:Fuel},{name:"water",label:"Water",icon:Droplet},{name:"recycle",label:"Recycle",icon:Recycle},
   {name:"wifi",label:"Wi-Fi",icon:Wifi},{name:"phone",label:"Phone",icon:Smartphone},{name:"shopping",label:"Shopping",icon:ShoppingBag},
@@ -347,9 +347,13 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const [adaptiveBudget, setAdaptiveBudget] = useState(true);
   const [savingCategory, setSavingCategory] = useState(false);
   const [budgetMessage, setBudgetMessage] = useState("");
-  type BillItem = { id: string; name: string; amount: number; frequency: string; due_day: number | null; next_due_date: string | null; autopay: boolean; category_id: string | null };
+  type BillItem = { id: string; name: string; amount: number; frequency: string; due_day: number | null; next_due_date: string | null; autopay: boolean; category_id: string | null; reminder_days_before: number; icon: string; color: string };
   const [bills, setBills] = useState<BillItem[]>([]);
   const [showBillForm, setShowBillForm] = useState(false);
+  const [editingBillId, setEditingBillId] = useState<string | null>(null);
+  const [billIcon, setBillIcon] = useState("calendar");
+  const [billColor, setBillColor] = useState("#CA9EE6");
+  const [billReminderDays, setBillReminderDays] = useState("3");
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billDueDate, setBillDueDate] = useState("");
@@ -362,7 +366,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     let active = true;
     async function loadBills() {
       const { data, error } = await createClient().from("bills")
-        .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id")
+        .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id,reminder_days_before,icon,color")
         .eq("owner_id", userId).eq("is_active", true).order("next_due_date", { ascending: true, nullsFirst: false });
       if (!active) return;
       if (error) { setBudgetMessage("Couldn't load bills: " + error.message); return; }
@@ -372,25 +376,51 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     return () => { active = false; };
   }, [tab, userId]);
 
+  function startBillEdit(bill: BillItem) {
+    setEditingBillId(bill.id);
+    setBillName(bill.name);
+    setBillAmount(String(bill.amount));
+    setBillDueDate(bill.next_due_date ?? "");
+    setBillFrequency(bill.frequency);
+    setBillAutopay(bill.autopay);
+    setBillIcon(bill.icon || "calendar");
+    setBillColor(bill.color || "#CA9EE6");
+    setBillReminderDays(String(bill.reminder_days_before ?? 3));
+    setShowBillForm(true);
+  }
+
+  function resetBillForm() {
+    setEditingBillId(null); setBillName(""); setBillAmount(""); setBillDueDate("");
+    setBillFrequency("monthly"); setBillAutopay(false); setBillIcon("calendar");
+    setBillColor("#CA9EE6"); setBillReminderDays("3"); setShowBillForm(false);
+  }
+
   async function addBill(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!userId || !billName.trim() || !billAmount || !billDueDate) return;
     const amount = Number(billAmount);
+    const reminderDays = Number(billReminderDays);
     if (!Number.isFinite(amount) || amount <= 0) { setBudgetMessage("Enter a valid bill amount."); return; }
+    if (!Number.isInteger(reminderDays) || reminderDays < 0 || reminderDays > 30) { setBudgetMessage("Reminder must be between 0 and 30 days."); return; }
     setSavingBill(true); setBudgetMessage("");
     try {
       const dueDate = new Date(billDueDate + "T12:00:00");
       const payload = {
-        owner_id: userId, name: billName.trim(), amount, frequency: billFrequency,
+        name: billName.trim(), amount, frequency: billFrequency,
         due_day: dueDate.getDate(), next_due_date: billDueDate, autopay: billAutopay,
-        category_id: null
+        reminder_days_before: reminderDays, icon: billIcon, color: billColor
       };
-      const { data, error } = await createClient().from("bills")
-        .insert(payload).select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id").single();
-      if (error) throw error;
-      setBills(current => [...current, data as BillItem].sort((a,b) => (a.next_due_date ?? "9999").localeCompare(b.next_due_date ?? "9999")));
-      setBillName(""); setBillAmount(""); setBillDueDate(""); setBillFrequency("monthly"); setBillAutopay(false); setShowBillForm(false);
-      setBudgetMessage("Bill added.");
+      const supabase = createClient();
+      const result = editingBillId
+        ? await supabase.from("bills").update(payload).eq("id", editingBillId).eq("owner_id", userId)
+          .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id,reminder_days_before,icon,color").single()
+        : await supabase.from("bills").insert({ ...payload, owner_id: userId, category_id: null })
+          .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id,reminder_days_before,icon,color").single();
+      if (result.error) throw result.error;
+      const saved = result.data as BillItem;
+      setBills(current => [...current.filter(item => item.id !== saved.id), saved].sort((a,b) => (a.next_due_date ?? "9999").localeCompare(b.next_due_date ?? "9999")));
+      resetBillForm();
+      setBudgetMessage(editingBillId ? "Bill updated." : "Bill added.");
     } catch (error) {
       setBudgetMessage(error instanceof Error ? error.message : "Couldn't save that bill.");
     } finally { setSavingBill(false); }
@@ -530,22 +560,27 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
           <button className="secondary-button" type="button" onClick={() => setShowBillForm(value => !value)}><Plus size={15}/> Add bill</button>
         </div>
         {showBillForm && <form className="bill-entry-form" onSubmit={addBill}>
+          <div className="bill-form-heading"><strong>{editingBillId ? "Edit bill" : "Add a bill"}</strong><button type="button" className="more-button" onClick={resetBillForm} aria-label="Close bill form"><X size={17}/></button></div>
           <label>Bill name<input value={billName} onChange={event => setBillName(event.target.value)} placeholder="e.g. Electricity" maxLength={60} required/></label>
           <label>Amount ($)<input type="number" min="0.01" step="0.01" value={billAmount} onChange={event => setBillAmount(event.target.value)} placeholder="150.00" required/></label>
           <label>Next due date<input type="date" value={billDueDate} onChange={event => setBillDueDate(event.target.value)} required/></label>
           <label>Repeats<select value={billFrequency} onChange={event => setBillFrequency(event.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
+          <label>Reminder (days before)<input type="number" min="0" max="30" value={billReminderDays} onChange={event => setBillReminderDays(event.target.value)}/></label>
+          <div className="bill-symbol-picker"><div className="category-symbol-picker-heading"><span>Bill symbol</span><small>{categorySymbolOptions.length} options</small></div><div className="category-symbol-grid">{categorySymbolOptions.map(option => { const Icon = option.icon; return <button type="button" key={option.name} className={billIcon === option.name ? "selected" : ""} onClick={() => setBillIcon(option.name)} aria-label={option.label} title={option.label}><Icon size={19}/><span>{option.label}</span></button>; })}</div></div>
+          <label>Symbol color<select value={billColor} onChange={event => setBillColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label>
           <label className="bill-autopay"><input type="checkbox" checked={billAutopay} onChange={event => setBillAutopay(event.target.checked)}/> Auto-pay</label>
-          <button className="primary-button" type="submit" disabled={savingBill}>{savingBill ? "Saving…" : "Save bill"}</button>
+          <button className="primary-button" type="submit" disabled={savingBill}>{savingBill ? "Saving…" : editingBillId ? "Save changes" : "Save bill"}</button>
         </form>}
         {bills.length ? <div className="bill-list">{bills.map(bill => {
           const due = bill.next_due_date ? new Date(bill.next_due_date + "T12:00:00") : null;
           const dueLabel = due ? due.toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric"}) : "Date not set";
           const daysUntil = due ? Math.ceil((due.getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) : null;
           return <div className="bill-row" key={bill.id}>
-            <div className="bill-row-icon"><CalendarDays size={17}/></div>
+            <div className="bill-row-icon" style={{color:bill.color || "#CA9EE6",background:(bill.color || "#CA9EE6")+"20"}}><CategoryIcon name={bill.icon || "calendar"}/></div>
             <div className="bill-row-name"><strong>{bill.name}</strong><span>{bill.frequency === "monthly" ? "Monthly" : bill.frequency === "biweekly" ? "Every 2 weeks" : bill.frequency[0].toUpperCase()+bill.frequency.slice(1)}{bill.autopay ? " · Auto-pay" : ""}</span></div>
             <div className="bill-row-due"><span>Next due</span><strong>{dueLabel}</strong><small>{daysUntil === null ? "" : daysUntil < 0 ? `${Math.abs(daysUntil)} days overdue` : daysUntil === 0 ? "Due today" : `In ${daysUntil} days`}</small></div>
             <strong className="bill-row-amount">{money(Number(bill.amount))}</strong>
+            <button type="button" className="bill-edit" onClick={() => startBillEdit(bill)} disabled={savingBill} aria-label={`Edit ${bill.name}`} title="Edit bill"><Pencil size={14}/></button>
             <button type="button" className="bill-remove" onClick={() => void removeBill(bill)} disabled={savingBill} aria-label={`Remove ${bill.name}`}><Trash2 size={15}/></button>
           </div>;
         })}</div> : <div className="bills-empty"><CalendarDays size={22}/><strong>No bills added yet</strong><span>Add rent, utilities, insurance, or any recurring payment to start tracking due dates.</span></div>}
