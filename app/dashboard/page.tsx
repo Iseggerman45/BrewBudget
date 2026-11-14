@@ -354,6 +354,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const [billIcon, setBillIcon] = useState("calendar");
   const [billColor, setBillColor] = useState("#CA9EE6");
   const [billReminderDays, setBillReminderDays] = useState("3");
+  const [billCategoryId, setBillCategoryId] = useState("");
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billDueDate, setBillDueDate] = useState("");
@@ -386,13 +387,14 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     setBillIcon(bill.icon || "calendar");
     setBillColor(bill.color || "#CA9EE6");
     setBillReminderDays(String(bill.reminder_days_before ?? 3));
+    setBillCategoryId(bill.category_id ?? "");
     setShowBillForm(true);
   }
 
   function resetBillForm() {
     setEditingBillId(null); setBillName(""); setBillAmount(""); setBillDueDate("");
     setBillFrequency("monthly"); setBillAutopay(false); setBillIcon("calendar");
-    setBillColor("#CA9EE6"); setBillReminderDays("3"); setShowBillForm(false);
+    setBillColor("#CA9EE6"); setBillReminderDays("3"); setBillCategoryId(""); setShowBillForm(false);
   }
 
   async function addBill(event: FormEvent<HTMLFormElement>) {
@@ -408,13 +410,14 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
       const payload = {
         name: billName.trim(), amount, frequency: billFrequency,
         due_day: dueDate.getDate(), next_due_date: billDueDate, autopay: billAutopay,
-        reminder_days_before: reminderDays, icon: billIcon, color: billColor
+        reminder_days_before: reminderDays, icon: billIcon, color: billColor,
+        category_id: billCategoryId || null
       };
       const supabase = createClient();
       const result = editingBillId
         ? await supabase.from("bills").update(payload).eq("id", editingBillId).eq("owner_id", userId)
           .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id,reminder_days_before,icon,color").single()
-        : await supabase.from("bills").insert({ ...payload, owner_id: userId, category_id: null })
+        : await supabase.from("bills").insert({ ...payload, owner_id: userId })
           .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id,reminder_days_before,icon,color").single();
       if (result.error) throw result.error;
       const saved = result.data as BillItem;
@@ -566,6 +569,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
           <label>Next due date<input type="date" value={billDueDate} onChange={event => setBillDueDate(event.target.value)} required/></label>
           <label>Repeats<select value={billFrequency} onChange={event => setBillFrequency(event.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
           <label>Reminder (days before)<input type="number" min="0" max="30" value={billReminderDays} onChange={event => setBillReminderDays(event.target.value)}/></label>
+          <label>Budget category<select value={billCategoryId} onChange={event => setBillCategoryId(event.target.value)}><option value="">No category linked</option>{categories.map(category => <option key={category.id ?? category.name} value={category.id ?? ""}>{category.name}</option>)}</select></label>
           <div className="bill-symbol-picker"><div className="category-symbol-picker-heading"><span>Bill symbol</span><small>{categorySymbolOptions.length} options</small></div><div className="category-symbol-grid">{categorySymbolOptions.map(option => { const Icon = option.icon; return <button type="button" key={option.name} className={billIcon === option.name ? "selected" : ""} onClick={() => setBillIcon(option.name)} aria-label={option.label} title={option.label}><Icon size={19}/><span>{option.label}</span></button>; })}</div></div>
           <label>Symbol color<select value={billColor} onChange={event => setBillColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label>
           <label className="bill-autopay"><input type="checkbox" checked={billAutopay} onChange={event => setBillAutopay(event.target.checked)}/> Auto-pay</label>
