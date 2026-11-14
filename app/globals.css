@@ -304,3 +304,9 @@
  .mobile-column-label{display:inline;color:#8792a1;font-size:8px;font-weight:800;letter-spacing:.7px}
  .budget-number-cell strong,.budget-planned-cell input{font-size:14px}
 }
+
+.budget-table-category{position:relative;padding-right:30px}
+.budget-delete-category{position:absolute;right:0;top:50%;transform:translateY(-50%);width:27px;height:27px;display:grid;place-items:center;border:1px solid transparent;border-radius:8px;background:transparent;color:#8994a3;opacity:.55;cursor:pointer;transition:all .18s}
+.budget-table-row:hover .budget-delete-category,.budget-delete-category:focus-visible{opacity:1}
+.budget-delete-category:hover{color:#ee9a9a;border-color:#ee9a9a44;background:#ee9a9a12}
+.budget-delete-category:disabled{opacity:.3;cursor:wait}
