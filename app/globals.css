@@ -424,3 +424,14 @@
 .category-symbol-grid button.selected{background:rgba(202,158,230,.16);border-color:rgba(202,158,230,.62);color:#e8d5f5;box-shadow:inset 0 0 0 1px rgba(202,158,230,.12),0 0 16px rgba(202,158,230,.08)}
 @media(max-width:900px){.category-symbol-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media(max-width:520px){.category-symbol-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:250px}.category-symbol-grid button{min-height:58px}}
+
+
+/* Bill editing and visual customization */
+.bill-form-heading{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;color:#e8e9ee;font:600 14px Manrope,sans-serif}
+.bill-symbol-picker{grid-column:1/-1;min-width:0;padding:13px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(12,17,24,.25)}
+.bill-symbol-picker .category-symbol-grid{grid-template-columns:repeat(8,minmax(0,1fr));max-height:180px}
+.bill-edit{width:29px;height:29px;display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(202,158,230,.17);border-radius:8px;background:rgba(202,158,230,.07);color:#cbb0df;transition:background .18s,color .18s,border-color .18s}
+.bill-edit:hover{background:rgba(202,158,230,.17);border-color:rgba(202,158,230,.4);color:#f0dcff}
+.bill-row-icon{flex-shrink:0}
+@media(max-width:900px){.bill-symbol-picker .category-symbol-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media(max-width:520px){.bill-symbol-picker .category-symbol-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:220px}}
