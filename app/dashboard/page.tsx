@@ -274,7 +274,7 @@ export default function Dashboard() {
               <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Start with what matters most.</h2><p>Add your first income or expense, then create a budget that reflects how you want to use your money.</p><div className="insight-bottom"><span className="insight-spark">✳</span> A little progress adds up.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
-          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} categories={categoryList} userId={currentUserId} onCategoryChange={(updated) => { setCategoryList(current => current.map(item => item.id === updated.id ? updated : item)); setBudgetSpent(current => ({ ...current, [updated.name]: updated.spent })); }}/>}
+          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} categories={categoryList} userId={currentUserId} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }}/>}
         </div>
       </section>
 
@@ -312,7 +312,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     try {
       const supabase = createClient();
       const { data: existing, error: lookupError } = await supabase.from("budgets")
-        .select("id").eq("owner_id", userId).eq("category_id", category.id).eq("period_type", budgetPeriod).limit(1).maybeSingle();
+        .select("id").eq("owner_id", userId).eq("category_id", category.id).limit(1).maybeSingle();
       if (lookupError) throw lookupError;
       const payload = { owner_id: userId, category_id: category.id, amount, period_type: budgetPeriod, rollover_enabled: false };
       const result = existing
