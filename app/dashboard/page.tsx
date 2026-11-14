@@ -20,7 +20,7 @@ type Period = "Monthly" | "Biweekly";
 type Tab = "Overview" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
 type Debt = { id: number; name: string; original: number; balance: number };
 type Transaction = { name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
-type CategoryItem = { id?: string; name: string; spent: number; budget: number; color: string; icon: string };
+type CategoryItem = { id?: string; name: string; spent: number; budget: number; budgetPeriod: "monthly" | "biweekly"; color: string; icon: string };
 
 const initialTransactions: Transaction[] = [];
 
@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [newCategory, setNewCategory] = useState("Groceries");
   const [categoryList, setCategoryList] = useState<CategoryItem[]>([]);
   const [expectedIncome, setExpectedIncome] = useState(0);
+  const [nextPayday, setNextPayday] = useState<string | null>(null);
   const [payFrequency, setPayFrequency] = useState("biweekly");
   const [toast, setToast] = useState("");
   const [debts, setDebts] = useState<Debt[]>([]);
@@ -114,17 +115,18 @@ export default function Dashboard() {
       setCurrentUserId(user.id);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_completed, expected_income, pay_frequency")
+        .select("onboarding_completed, expected_income, pay_frequency, next_payday")
         .eq("id", user.id)
         .maybeSingle();
       if (!active) return;
       setShowOnboarding(!profile?.onboarding_completed);
       setExpectedIncome(Number(profile?.expected_income ?? 0));
       setPayFrequency(profile?.pay_frequency ?? "biweekly");
+      setNextPayday(profile?.next_payday ?? null);
       if (profile?.onboarding_completed) {
         let [{ data: savedCategories }, { data: savedBudgets }] = await Promise.all([
           supabase.from("categories").select("id,name,icon,color").eq("owner_id", user.id).eq("category_type", "expense"),
-          supabase.from("budgets").select("category_id,amount").eq("owner_id", user.id)
+          supabase.from("budgets").select("category_id,amount,period_type").eq("owner_id", user.id)
         ]);
         if (!active) return;
         if (!savedCategories?.length) {
@@ -141,9 +143,15 @@ export default function Dashboard() {
           }))).select("id,name,icon,color");
           if (!createError) savedCategories = created;
         }
-        const budgetByCategory = new Map((savedBudgets ?? []).map(item => [item.category_id, Number(item.amount)]));
-        const loadedCategories = (savedCategories ?? []).map(item => ({ id: item.id, name: item.name, spent: 0, budget: budgetByCategory.get(item.id) ?? 0, color: item.color ?? "#A6D189", icon: item.icon ?? "receipt" }));
-        const { data: actualRows } = await supabase.from("transactions").select("category_id,amount").eq("owner_id", user.id).eq("transaction_type", "expense");
+        const budgetByCategory = new Map((savedBudgets ?? []).map(item => [item.category_id, { amount: Number(item.amount), period: item.period_type === "monthly" ? "monthly" as const : "biweekly" as const }]));
+        const loadedCategories = (savedCategories ?? []).map(item => {
+          const savedBudget = budgetByCategory.get(item.id);
+          return { id: item.id, name: item.name, spent: 0, budget: savedBudget?.amount ?? 0, budgetPeriod: savedBudget?.period ?? "biweekly" as const, color: item.color ?? "#A6D189", icon: item.icon ?? "receipt" };
+        });
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const { data: actualRows } = await supabase.from("transactions").select("category_id,amount,transaction_date").eq("owner_id", user.id).eq("transaction_type", "expense").gte("transaction_date", periodStart.toISOString()).lt("transaction_date", periodEnd.toISOString());
         if (!active) return;
         const spentById = new Map<string, number>();
         (actualRows ?? []).forEach(row => { if (row.category_id) spentById.set(row.category_id, (spentById.get(row.category_id) ?? 0) + Number(row.amount)); });
@@ -317,7 +325,7 @@ export default function Dashboard() {
               <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Start with what matters most.</h2><p>Add your first income or expense, then create a budget that reflects how you want to use your money.</p><div className="insight-bottom"><span className="insight-spark">✳</span> A little progress adds up.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
-          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} categories={categoryList} userId={currentUserId} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }}/>}
+          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} categories={categoryList} userId={currentUserId} nextPayday={nextPayday} payFrequency={payFrequency} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }}/>}
         </div>
       </section>
 
@@ -337,14 +345,13 @@ function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => voi
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> YOUR DEBT-FREE JOURNEY</div><div className="subpage-heading"><div><h1>Debt tracker</h1><p className="subtitle">Every payment moves the number down. Every little bit counts.</p></div><button className="primary-button" onClick={onAdd}><Plus size={17}/> Add debt</button></div><div className="debt-summary-grid"><section className="glass-card debt-total-card"><div className="card-label">TOTAL DEBT REMAINING</div><div className="debt-total-value">{money(total)}</div><p>{debts.length ? `${money(Math.max(0, original-total))} paid off so far` : "Add your first debt to get started."}</p></section><section className="glass-card debt-progress-card"><div className="card-label">YOUR PROGRESS</div><div className="debt-progress-number">{original ? Math.round((original-total)/original*100) : 0}%</div><div className="progress-track"><div className="progress-fill" style={{width:(original ? (original-total)/original*100 : 0)+"%",background:"var(--purple)"}}/></div><p>of your starting debt cleared</p></section></div>{debts.length ? <div className="debt-list">{debts.map(d => <section className="glass-card debt-item" key={d.id}><div className="debt-item-top"><div className="debt-icon"><CreditCard size={19}/></div><div className="debt-title"><strong>{d.name}</strong><span>{d.balance === 0 ? "Paid in full 🎉" : "Keep chipping away"}</span></div><div className="debt-balance">{money(d.balance)}<small>remaining</small></div></div><div className="progress-track"><div className="progress-fill" style={{width:((d.original-d.balance)/d.original*100)+"%",background:"var(--purple)"}}/></div><div className="debt-item-foot"><span>{money(d.original-d.balance)} paid of {money(d.original)}</span><strong>{Math.round((d.original-d.balance)/d.original*100)}%</strong></div></section>)}</div> : <section className="glass-card debt-empty"><div className="debt-empty-icon"><CreditCard size={27}/></div><h2>Start with one debt.</h2><p>Add a student loan, car payment, credit card, or anything else you’re working to pay off. BrewBudget will keep the remaining balance moving down as you log payments.</p><button className="primary-button" onClick={onAdd}><Plus size={16}/> Add your first debt</button></section>}{debts.some(d=>d.balance>0) && <div className="debt-payment-row"><div><strong>Made a debt payment?</strong><p>Log it as an expense and apply it to the right balance.</p></div><button className="primary-button" onClick={onPayment}><Plus size={16}/> Log a payment</button></div>}</div>;
 }
 
-function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, categories, userId, onCategoryChange, onCategoryDelete }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; categories: CategoryItem[]; userId: string | null; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void }) {
+function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, categories, userId, nextPayday, payFrequency, onCategoryChange, onCategoryDelete }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; categories: CategoryItem[]; userId: string | null; nextPayday: string | null; payFrequency: string; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void }) {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [categoryBudget, setCategoryBudget] = useState("");
   const [categoryColor, setCategoryColor] = useState("#CA9EE6");
   const [categoryIcon, setCategoryIcon] = useState("receipt");
   const [budgetPeriod, setBudgetPeriod] = useState<"monthly" | "biweekly">("biweekly");
-  const [adaptiveBudget, setAdaptiveBudget] = useState(true);
   const [savingCategory, setSavingCategory] = useState(false);
   const [budgetMessage, setBudgetMessage] = useState("");
   type BillItem = { id: string; name: string; amount: number; frequency: string; due_day: number | null; next_due_date: string | null; autopay: boolean; category_id: string | null; reminder_days_before: number; icon: string; color: string };
@@ -443,7 +450,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   }
   const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Plan what you expect to spend, then compare it with what you actually spend.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
 
-  async function saveBudget(category: CategoryItem, amountValue: string, ownerId: string | null = userId) {
+  async function saveBudget(category: CategoryItem, amountValue: string, ownerId: string | null = userId, savedPeriod: "monthly" | "biweekly" = budgetPeriod) {
     if (!ownerId || !category.id) return;
     const amount = Number(amountValue);
     if (!Number.isFinite(amount) || amount < 0) { setBudgetMessage("Enter a valid budget amount."); return; }
@@ -453,56 +460,22 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
       const { data: existing, error: lookupError } = await supabase.from("budgets")
         .select("id").eq("owner_id", ownerId).eq("category_id", category.id).limit(1).maybeSingle();
       if (lookupError) throw lookupError;
-      const payload = { owner_id: ownerId, category_id: category.id, amount, period_type: budgetPeriod, rollover_enabled: false };
+      const payload = { owner_id: ownerId, category_id: category.id, amount, period_type: savedPeriod, rollover_enabled: false };
       const result = existing
-        ? await supabase.from("budgets").update({ amount, period_type: budgetPeriod }).eq("id", existing.id)
+        ? await supabase.from("budgets").update({ amount, period_type: savedPeriod }).eq("id", existing.id)
         : await supabase.from("budgets").insert(payload);
       if (result.error) throw result.error;
-      onCategoryChange({ ...category, budget: amount });
+      onCategoryChange({ ...category, budget: amount, budgetPeriod: savedPeriod });
       setBudgetMessage(`“${category.name}” was added and its budget was saved.`);
     } catch (error) {
       setBudgetMessage(`“${category.name}” was added, but its budget couldn't be saved: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally { setSavingCategory(false); }
   }
 
-  async function changeBudgetPeriod(nextPeriod: "monthly" | "biweekly") {
-    if (nextPeriod === budgetPeriod || savingCategory) return;
-    setBudgetMessage("");
-    if (!adaptiveBudget) {
-      setBudgetPeriod(nextPeriod);
-      setBudgetMessage("Period changed. Category amounts were not converted.");
-      return;
-    }
-    if (!userId) {
-      setBudgetPeriod(nextPeriod);
-      return;
-    }
-    const multiplier = budgetPeriod === "biweekly" && nextPeriod === "monthly" ? 2 : 0.5;
-    setSavingCategory(true);
-    try {
-      const supabase = createClient();
-      const converted = categories.map(category => ({
-        ...category,
-        budget: Math.round(category.budget * multiplier * 100) / 100
-      }));
-      for (const category of converted) {
-        if (!category.id || category.budget === 0) continue;
-        const { data: existing, error: lookupError } = await supabase.from("budgets")
-          .select("id").eq("owner_id", userId).eq("category_id", category.id).limit(1).maybeSingle();
-        if (lookupError) throw lookupError;
-        const result = existing
-          ? await supabase.from("budgets").update({ amount: category.budget, period_type: nextPeriod }).eq("id", existing.id)
-          : await supabase.from("budgets").insert({ owner_id: userId, category_id: category.id, amount: category.budget, period_type: nextPeriod, rollover_enabled: false });
-        if (result.error) throw result.error;
-      }
-      converted.forEach(category => onCategoryChange(category));
-      setBudgetPeriod(nextPeriod);
-      setBudgetMessage(`Adaptive budgets converted to ${nextPeriod === "monthly" ? "monthly" : "per-paycheck"} amounts.`);
-    } catch (error) {
-      setBudgetMessage(error instanceof Error ? error.message : "Couldn't convert your budget amounts.");
-    } finally {
-      setSavingCategory(false);
-    }
+  function changeBudgetPeriod(nextPeriod: "monthly" | "biweekly") {
+    if (nextPeriod === budgetPeriod) return;
+    setBudgetPeriod(nextPeriod);
+    setBudgetMessage(`Showing your saved plan ${nextPeriod === "monthly" ? "per month" : "per paycheck"}. Your original budget amounts stay saved.`);
   }
 
   async function deleteCategory(category: CategoryItem) {
@@ -566,7 +539,8 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         icon: data.icon ?? "receipt",
         color: data.color ?? categoryColor,
         spent: 0,
-        budget: 0
+        budget: 0,
+        budgetPeriod
       };
       onCategoryChange(created);
 
@@ -647,19 +621,20 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
               <button type="button" className={budgetPeriod === "biweekly" ? "selected" : ""} onClick={() => void changeBudgetPeriod("biweekly")}>Per paycheck</button>
               <button type="button" className={budgetPeriod === "monthly" ? "selected" : ""} onClick={() => void changeBudgetPeriod("monthly")}>Monthly</button>
             </div>
-            <label className="adaptive-budget-toggle"><input type="checkbox" checked={adaptiveBudget} onChange={event => setAdaptiveBudget(event.target.checked)}/><span className="adaptive-switch"/><span><strong>Adaptive amounts</strong><small>{adaptiveBudget ? "Automatically doubles or halves category targets when you switch periods." : "Switching periods won't change category amounts."}</small></span></label>
+            <div className="adaptive-budget-note"><strong>Automatic budget conversion</strong><small>Your saved plan carries forward. Monthly and per-paycheck views adjust automatically without overwriting your original amounts.</small></div>
           </div>
           <div className="budget-category-list"><div className="budget-table">
           <div className="budget-table-head"><span>CATEGORY</span><span>PLANNED ({budgetPeriod === "monthly" ? "MONTHLY" : "PER PAYCHECK"})</span><span>SPENT</span><span>REMAINING</span></div>
           {categories.map(category => {
             const spent = budgetSpent[category.name] ?? category.spent;
-            const remaining = category.budget - spent;
-            const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
+            const displayBudget = category.budgetPeriod === budgetPeriod ? category.budget : Math.round(category.budget * (category.budgetPeriod === "biweekly" && budgetPeriod === "monthly" ? 2 : 0.5) * 100) / 100;
+            const remaining = displayBudget - spent;
+            const percent = displayBudget > 0 ? Math.min(100, spent / displayBudget * 100) : 0;
             return <section className="budget-table-row" key={category.id ?? category.name}>
               <div className="budget-table-category"><span className="budget-category-symbol" style={{color:category.color,background:category.color+"20"}}><CategoryIcon name={category.icon}/></span><strong>{category.name}</strong><div className="budget-row-progress"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div><button type="button" className="budget-delete-category" onClick={() => void deleteCategory(category)} disabled={savingCategory} aria-label={`Remove ${category.name} category`} title="Remove category"><Trash2 size={14}/></button></div>
-              <label className="budget-planned-cell"><span className="mobile-column-label">{budgetPeriod === "monthly" ? "PLANNED / MONTH" : "PLANNED / PAYCHECK"}</span><span className="budget-currency">$</span><input key={(category.id ?? category.name)+"-"+budgetPeriod} aria-label={"Planned budget "+(budgetPeriod === "monthly" ? "per month" : "per paycheck")+" for "+category.name} name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="0" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></label>
+              <label className="budget-planned-cell"><span className="mobile-column-label">{budgetPeriod === "monthly" ? "PLANNED / MONTH" : "PLANNED / PAYCHECK"}</span><span className="budget-currency">$</span><input key={(category.id ?? category.name)+"-"+budgetPeriod} aria-label={"Planned budget "+(budgetPeriod === "monthly" ? "per month" : "per paycheck")+" for "+category.name} name="budget" type="number" min="0" step="0.01" defaultValue={displayBudget || ""} placeholder="0" onBlur={event => { if (event.currentTarget.value !== String(displayBudget || "")) void saveBudget(category,event.currentTarget.value,userId,budgetPeriod); }}/></label>
               <div className="budget-number-cell"><span className="mobile-column-label">SPENT</span><strong>{money(spent)}</strong></div>
-              <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{category.budget > 0 ? money(remaining) : "—"}</strong></div>
+              <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{displayBudget > 0 ? money(remaining) : "—"}</strong></div>
             </section>;
           })}
         </div></div></div>
