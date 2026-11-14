@@ -338,6 +338,25 @@ function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => voi
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> YOUR DEBT-FREE JOURNEY</div><div className="subpage-heading"><div><h1>Debt tracker</h1><p className="subtitle">Every payment moves the number down. Every little bit counts.</p></div><button className="primary-button" onClick={onAdd}><Plus size={17}/> Add debt</button></div><div className="debt-summary-grid"><section className="glass-card debt-total-card"><div className="card-label">TOTAL DEBT REMAINING</div><div className="debt-total-value">{money(total)}</div><p>{debts.length ? `${money(Math.max(0, original-total))} paid off so far` : "Add your first debt to get started."}</p></section><section className="glass-card debt-progress-card"><div className="card-label">YOUR PROGRESS</div><div className="debt-progress-number">{original ? Math.round((original-total)/original*100) : 0}%</div><div className="progress-track"><div className="progress-fill" style={{width:(original ? (original-total)/original*100 : 0)+"%",background:"var(--purple)"}}/></div><p>of your starting debt cleared</p></section></div>{debts.length ? <div className="debt-list">{debts.map(d => <section className="glass-card debt-item" key={d.id}><div className="debt-item-top"><div className="debt-icon"><CreditCard size={19}/></div><div className="debt-title"><strong>{d.name}</strong><span>{d.balance === 0 ? "Paid in full 🎉" : "Keep chipping away"}</span></div><div className="debt-balance">{money(d.balance)}<small>remaining</small></div></div><div className="progress-track"><div className="progress-fill" style={{width:((d.original-d.balance)/d.original*100)+"%",background:"var(--purple)"}}/></div><div className="debt-item-foot"><span>{money(d.original-d.balance)} paid of {money(d.original)}</span><strong>{Math.round((d.original-d.balance)/d.original*100)}%</strong></div></section>)}</div> : <section className="glass-card debt-empty"><div className="debt-empty-icon"><CreditCard size={27}/></div><h2>Start with one debt.</h2><p>Add a student loan, car payment, credit card, or anything else you’re working to pay off. BrewBudget will keep the remaining balance moving down as you log payments.</p><button className="primary-button" onClick={onAdd}><Plus size={16}/> Add your first debt</button></section>}{debts.some(d=>d.balance>0) && <div className="debt-payment-row"><div><strong>Made a debt payment?</strong><p>Log it as an expense and apply it to the right balance.</p></div><button className="primary-button" onClick={onPayment}><Plus size={16}/> Log a payment</button></div>}</div>;
 }
 
+function advanceBillDueDate(dateString: string, frequency: string): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const current = new Date(year, month - 1, day, 12);
+  if (frequency === "weekly") current.setDate(current.getDate() + 7);
+  else if (frequency === "biweekly") current.setDate(current.getDate() + 14);
+  else {
+    const months = frequency === "quarterly" ? 3 : frequency === "yearly" ? 12 : 1;
+    const targetMonth = current.getMonth() + months;
+    const lastDay = new Date(current.getFullYear(), targetMonth + 1, 0).getDate();
+    current.setDate(1);
+    current.setMonth(targetMonth);
+    current.setDate(Math.min(day, lastDay));
+  }
+  const yyyy = current.getFullYear();
+  const mm = String(current.getMonth() + 1).padStart(2, "0");
+  const dd = String(current.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, setBudgetSpent, categories, userId, nextPayday, payFrequency, onCategoryChange, onCategoryDelete }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; setBudgetSpent: (value: Record<string, number>) => void; categories: CategoryItem[]; userId: string | null; nextPayday: string | null; payFrequency: string; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void }) {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState("");
@@ -418,7 +437,27 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         .eq("owner_id", userId).eq("is_active", true).order("next_due_date", { ascending: true, nullsFirst: false });
       if (!active) return;
       if (error) { setBudgetMessage("Couldn't load bills: " + error.message); return; }
-      setBills((data ?? []) as BillItem[]);
+      const today = new Date();
+      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const loadedBills = (data ?? []) as BillItem[];
+      const advancedBills = await Promise.all(loadedBills.map(async bill => {
+        if (!bill.next_due_date || bill.next_due_date >= todayKey) return bill;
+        let nextDueDate = bill.next_due_date;
+        // Catch up every missed recurrence so a bill never stays stuck in the past.
+        for (let count = 0; count < 600 && nextDueDate < todayKey; count++) {
+          nextDueDate = advanceBillDueDate(nextDueDate, bill.frequency);
+        }
+        if (nextDueDate === bill.next_due_date) return bill;
+        const { error: updateError } = await createClient().from("bills")
+          .update({ next_due_date: nextDueDate, due_day: Number(nextDueDate.slice(8, 10)) })
+          .eq("id", bill.id).eq("owner_id", userId).eq("next_due_date", bill.next_due_date);
+        if (updateError) {
+          setBudgetMessage(`Couldn't roll the due date forward for ${bill.name}: ${updateError.message}`);
+          return bill;
+        }
+        return { ...bill, next_due_date: nextDueDate, due_day: Number(nextDueDate.slice(8, 10)) };
+      }));
+      if (active) setBills(advancedBills);
     }
     void loadBills();
     return () => { active = false; };
@@ -631,6 +670,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
           <div className="bill-symbol-picker"><div className="category-symbol-picker-heading"><span>{billName.trim() ? "Symbols matching your bill" : "Choose a bill symbol"}</span><small>{categorySymbolOptions.filter(option => !billName.trim() || (option.label + " " + option.name).toLowerCase().includes(billName.trim().toLowerCase())).length} {billName.trim() ? "suggestions" : "options"}</small></div><div className="category-symbol-grid">{categorySymbolOptions.filter(option => !billName.trim() || (option.label + " " + option.name).toLowerCase().includes(billName.trim().toLowerCase())).map(option => { const Icon = option.icon; return <button type="button" key={option.name} className={billIcon === option.name ? "selected" : ""} onClick={() => { setBillIcon(option.name); const typed = billName.trim().toLowerCase(); if (typed && option.label.toLowerCase().startsWith(typed)) setBillName(option.label); }} aria-label={`Use ${option.label} symbol and complete bill name`} title={`Use ${option.label} — complete name`}><Icon size={19} strokeWidth={1.8}/><span>{option.label}</span></button>; })}{billName.trim() && categorySymbolOptions.every(option => !(option.label + " " + option.name).toLowerCase().includes(billName.trim().toLowerCase())) && <div className="symbol-no-results">No direct symbol match. Clear or edit the bill name to see all symbols.</div>}</div></div>
           <label>Amount ($)<input type="number" min="0.01" step="0.01" value={billAmount} onChange={event => setBillAmount(event.target.value)} placeholder="150.00" required/></label>
           <label>Next due date<input type="date" value={billDueDate} onChange={event => setBillDueDate(event.target.value)} required/></label>
+          <p className="bill-date-hint">Just set the next due date once. BrewBudget will automatically roll it forward based on the bill’s repeat schedule.</p>
           <label>Repeats<select value={billFrequency} onChange={event => setBillFrequency(event.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
           <label>Reminder (days before)<input type="number" min="0" max="30" value={billReminderDays} onChange={event => setBillReminderDays(event.target.value)}/></label>
           <label>Budget category<select value={billCategoryId} onChange={event => setBillCategoryId(event.target.value)}><option value="">No category linked</option>{categories.map(category => <option key={category.id ?? category.name} value={category.id ?? ""}>{category.name}</option>)}</select></label>
