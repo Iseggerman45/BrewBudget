@@ -13,7 +13,7 @@ import {
   Menu, Landmark, PiggyBank, ReceiptText
 } from "lucide-react";
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 
 type Period = "Monthly" | "Biweekly";
@@ -89,16 +89,32 @@ export default function Dashboard() {
       setExpectedIncome(Number(profile?.expected_income ?? 0));
       setPayFrequency(profile?.pay_frequency ?? "biweekly");
       if (profile?.onboarding_completed) {
-        const [{ data: savedCategories }, { data: savedBudgets }] = await Promise.all([
+        let [{ data: savedCategories }, { data: savedBudgets }] = await Promise.all([
           supabase.from("categories").select("id,name,icon,color").eq("owner_id", user.id).eq("category_type", "expense"),
           supabase.from("budgets").select("category_id,amount").eq("owner_id", user.id)
         ]);
         if (!active) return;
+        if (!savedCategories?.length) {
+          const defaults = [
+            ["Housing","home","#A6D189"],["Utilities","zap","#E78284"],["Groceries","shopping","#8CAAEE"],
+            ["Transportation","car","#CA9EE6"],["Insurance","shield","#E5A86A"],["Phone & internet","wifi","#99D1DB"],
+            ["Coffee & dining","coffee","#E5A86A"],["Shopping","bag","#F4B8E4"]
+          ];
+          const { data: created, error: createError } = await supabase.from("categories").insert(defaults.map(([name,icon,color]) => ({
+            owner_id:user.id, name, icon, color, category_type:"expense"
+          }))).select("id,name,icon,color");
+          if (!createError) savedCategories = created;
+        }
         const budgetByCategory = new Map((savedBudgets ?? []).map(item => [item.category_id, Number(item.amount)]));
         const loadedCategories = (savedCategories ?? []).map(item => ({ id: item.id, name: item.name, spent: 0, budget: budgetByCategory.get(item.id) ?? 0, color: item.color ?? "#A6D189", icon: item.icon ?? "receipt" }));
-        setCategoryList(loadedCategories);
-        setBudgetSpent(Object.fromEntries(loadedCategories.map(category => [category.name, 0])));
-        if (loadedCategories.length) setNewCategory(loadedCategories[0].name);
+        const { data: actualRows } = await supabase.from("transactions").select("category_id,amount").eq("owner_id", user.id).eq("transaction_type", "expense");
+        if (!active) return;
+        const spentById = new Map<string, number>();
+        (actualRows ?? []).forEach(row => spentById.set(row.category_id, (spentById.get(row.category_id) ?? 0) + Number(row.amount)));
+        const finalCategories = loadedCategories.map(category => ({ ...category, spent: category.id ? spentById.get(category.id) ?? 0 : 0 }));
+        setCategoryList(finalCategories);
+        setBudgetSpent(Object.fromEntries(finalCategories.map(category => [category.name, category.spent])));
+        if (finalCategories.length) setNewCategory(finalCategories[0].name);
       }
     }
     checkOnboarding();
