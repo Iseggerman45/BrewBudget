@@ -148,16 +148,9 @@ export default function Dashboard() {
           const savedBudget = budgetByCategory.get(item.id);
           return { id: item.id, name: item.name, spent: 0, budget: savedBudget?.amount ?? 0, budgetPeriod: savedBudget?.period ?? "biweekly" as const, color: item.color ?? "#A6D189", icon: item.icon ?? "receipt" };
         });
-        const now = new Date();
-        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const { data: actualRows } = await supabase.from("transactions").select("category_id,amount,transaction_date").eq("owner_id", user.id).eq("transaction_type", "expense").gte("transaction_date", periodStart.toISOString()).lt("transaction_date", periodEnd.toISOString());
-        if (!active) return;
-        const spentById = new Map<string, number>();
-        (actualRows ?? []).forEach(row => { if (row.category_id) spentById.set(row.category_id, (spentById.get(row.category_id) ?? 0) + Number(row.amount)); });
-        const finalCategories = loadedCategories.map(category => ({ ...category, spent: category.id ? spentById.get(category.id) ?? 0 : 0 }));
+        const finalCategories = loadedCategories;
         setCategoryList(finalCategories);
-        setBudgetSpent(Object.fromEntries(finalCategories.map(category => [category.name, category.spent])));
+        setBudgetSpent({});
         if (finalCategories.length) setNewCategory(finalCategories[0].name);
       }
     }
@@ -325,7 +318,7 @@ export default function Dashboard() {
               <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Start with what matters most.</h2><p>Add your first income or expense, then create a budget that reflects how you want to use your money.</p><div className="insight-bottom"><span className="insight-spark">✳</span> A little progress adds up.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
-          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} categories={categoryList} userId={currentUserId} nextPayday={nextPayday} payFrequency={payFrequency} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }}/>}
+          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} setBudgetSpent={setBudgetSpent} categories={categoryList} userId={currentUserId} nextPayday={nextPayday} payFrequency={payFrequency} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }}/>}
         </div>
       </section>
 
@@ -345,7 +338,7 @@ function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => voi
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> YOUR DEBT-FREE JOURNEY</div><div className="subpage-heading"><div><h1>Debt tracker</h1><p className="subtitle">Every payment moves the number down. Every little bit counts.</p></div><button className="primary-button" onClick={onAdd}><Plus size={17}/> Add debt</button></div><div className="debt-summary-grid"><section className="glass-card debt-total-card"><div className="card-label">TOTAL DEBT REMAINING</div><div className="debt-total-value">{money(total)}</div><p>{debts.length ? `${money(Math.max(0, original-total))} paid off so far` : "Add your first debt to get started."}</p></section><section className="glass-card debt-progress-card"><div className="card-label">YOUR PROGRESS</div><div className="debt-progress-number">{original ? Math.round((original-total)/original*100) : 0}%</div><div className="progress-track"><div className="progress-fill" style={{width:(original ? (original-total)/original*100 : 0)+"%",background:"var(--purple)"}}/></div><p>of your starting debt cleared</p></section></div>{debts.length ? <div className="debt-list">{debts.map(d => <section className="glass-card debt-item" key={d.id}><div className="debt-item-top"><div className="debt-icon"><CreditCard size={19}/></div><div className="debt-title"><strong>{d.name}</strong><span>{d.balance === 0 ? "Paid in full 🎉" : "Keep chipping away"}</span></div><div className="debt-balance">{money(d.balance)}<small>remaining</small></div></div><div className="progress-track"><div className="progress-fill" style={{width:((d.original-d.balance)/d.original*100)+"%",background:"var(--purple)"}}/></div><div className="debt-item-foot"><span>{money(d.original-d.balance)} paid of {money(d.original)}</span><strong>{Math.round((d.original-d.balance)/d.original*100)}%</strong></div></section>)}</div> : <section className="glass-card debt-empty"><div className="debt-empty-icon"><CreditCard size={27}/></div><h2>Start with one debt.</h2><p>Add a student loan, car payment, credit card, or anything else you’re working to pay off. BrewBudget will keep the remaining balance moving down as you log payments.</p><button className="primary-button" onClick={onAdd}><Plus size={16}/> Add your first debt</button></section>}{debts.some(d=>d.balance>0) && <div className="debt-payment-row"><div><strong>Made a debt payment?</strong><p>Log it as an expense and apply it to the right balance.</p></div><button className="primary-button" onClick={onPayment}><Plus size={16}/> Log a payment</button></div>}</div>;
 }
 
-function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, categories, userId, nextPayday, payFrequency, onCategoryChange, onCategoryDelete }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; categories: CategoryItem[]; userId: string | null; nextPayday: string | null; payFrequency: string; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void }) {
+function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, setBudgetSpent, categories, userId, nextPayday, payFrequency, onCategoryChange, onCategoryDelete }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; setBudgetSpent: (value: Record<string, number>) => void; categories: CategoryItem[]; userId: string | null; nextPayday: string | null; payFrequency: string; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void }) {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [categoryBudget, setCategoryBudget] = useState("");
@@ -368,6 +361,53 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const [billFrequency, setBillFrequency] = useState("monthly");
   const [billAutopay, setBillAutopay] = useState(false);
   const [savingBill, setSavingBill] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "Budgets" || !userId) return;
+    let active = true;
+    async function loadPeriodSpending() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let start: Date;
+      let end: Date;
+      if (budgetPeriod === "monthly") {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      } else {
+        const intervalDays = payFrequency === "weekly" ? 7 : 14;
+        if (nextPayday) {
+          end = new Date(nextPayday + "T12:00:00");
+          end.setHours(0, 0, 0, 0);
+          while (end <= today) end.setDate(end.getDate() + intervalDays);
+          while (end.getTime() - intervalDays * 86400000 > today.getTime()) end.setDate(end.getDate() - intervalDays);
+        } else {
+          end = new Date(today);
+          end.setDate(end.getDate() + 1);
+        }
+        start = new Date(end);
+        start.setDate(start.getDate() - intervalDays);
+      }
+      const { data, error } = await createClient().from("transactions")
+        .select("category_id,amount")
+        .eq("owner_id", userId)
+        .eq("transaction_type", "expense")
+        .gte("transaction_date", start.toISOString())
+        .lt("transaction_date", end.toISOString());
+      if (!active) return;
+      if (error) {
+        setBudgetMessage("Couldn't load spending for this period: " + error.message);
+        return;
+      }
+      const spent: Record<string, number> = {};
+      (data ?? []).forEach(row => {
+        const category = categories.find(item => item.id === row.category_id);
+        if (category) spent[category.name] = (spent[category.name] ?? 0) + Number(row.amount);
+      });
+      setBudgetSpent(spent);
+    }
+    void loadPeriodSpending();
+    return () => { active = false; };
+  }, [tab, userId, budgetPeriod, nextPayday, payFrequency, categories]);
 
   useEffect(() => {
     if (tab !== "Budgets" || !userId) return;
