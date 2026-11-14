@@ -506,7 +506,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         : await supabase.from("budgets").insert(payload);
       if (result.error) throw result.error;
       onCategoryChange({ ...category, budget: amount, budgetPeriod: savedPeriod });
-      setBudgetMessage(`“${category.name}” was added and its budget was saved.`);
+      setBudgetMessage(`“${category.name}” budget saved for future periods.`);
     } catch (error) {
       setBudgetMessage(`“${category.name}” was added, but its budget couldn't be saved: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally { setSavingCategory(false); }
@@ -667,7 +667,8 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
           <div className="budget-table-head"><span>CATEGORY</span><span>PLANNED ({budgetPeriod === "monthly" ? "MONTHLY" : "PER PAYCHECK"})</span><span>SPENT</span><span>REMAINING</span></div>
           {categories.map(category => {
             const spent = budgetSpent[category.name] ?? category.spent;
-            const displayBudget = category.budgetPeriod === budgetPeriod ? category.budget : Math.round(category.budget * (category.budgetPeriod === "biweekly" && budgetPeriod === "monthly" ? 2 : 0.5) * 100) / 100;
+            const paychecksPerMonth = payFrequency === "weekly" ? 52 / 12 : payFrequency === "biweekly" ? 26 / 12 : payFrequency === "twice_monthly" ? 2 : payFrequency === "monthly" ? 1 : 2;
+            const displayBudget = category.budgetPeriod === budgetPeriod ? category.budget : Math.round(category.budget * (category.budgetPeriod === "biweekly" ? paychecksPerMonth : 1 / paychecksPerMonth) * 100) / 100;
             const remaining = displayBudget - spent;
             const percent = displayBudget > 0 ? Math.min(100, spent / displayBudget * 100) : 0;
             return <section className="budget-table-row" key={category.id ?? category.name}>
