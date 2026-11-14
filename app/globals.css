@@ -274,3 +274,33 @@
 }
 
 .autosave-hint{color:#8792a1;font-size:9px;font-weight:400;letter-spacing:0}
+
+/* Clear, EveryDollar-inspired budget ledger */
+.budget-table{overflow:hidden;border:1px solid rgba(231,237,247,.1);border-radius:16px;background:rgba(20,26,35,.52)}
+.budget-table-head,.budget-table-row{display:grid;grid-template-columns:minmax(190px,1.7fr) minmax(140px,1fr) minmax(125px,1fr) minmax(135px,1fr);align-items:center;column-gap:18px;padding:0 22px}
+.budget-table-head{min-height:43px;background:rgba(255,255,255,.035);border-bottom:1px solid rgba(231,237,247,.1);color:#8994a3;font-size:9px;font-weight:800;letter-spacing:1px}
+.budget-table-row{min-height:78px;border-bottom:1px solid rgba(231,237,247,.075);transition:background .18s}
+.budget-table-row:last-child{border-bottom:0}.budget-table-row:hover{background:rgba(255,255,255,.025)}
+.budget-table-category{display:grid;grid-template-columns:9px 1fr;align-items:center;gap:10px;min-width:0}
+.budget-table-category strong{font-size:13px;font-weight:750;color:#f0f1f4;letter-spacing:-.2px}
+.budget-row-progress{grid-column:2;overflow:hidden;height:4px;margin-top:2px;border-radius:9px;background:#ffffff12}
+.budget-row-progress .progress-fill{box-shadow:none}
+.budget-planned-cell{height:40px;display:flex;align-items:center;gap:5px;padding:0 11px;border:1px solid rgba(202,158,230,.24);border-radius:9px;background:rgba(202,158,230,.055);color:#bda4d1}
+.budget-planned-cell:focus-within{border-color:#ca9ee6a8;box-shadow:0 0 0 3px #ca9ee615}
+.budget-planned-cell input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#f4f1f7;font:750 15px Manrope,sans-serif;font-variant-numeric:tabular-nums}
+.budget-planned-cell input::placeholder{color:#707b89}.budget-currency{font-size:12px;color:#a9b1bf}
+.budget-number-cell{display:flex;align-items:center;min-width:0}
+.budget-number-cell strong{font:750 16px Manrope,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.4px;color:#f0f1f4}
+.budget-number-cell.budget-under strong{color:#b9d8a7}.budget-number-cell.budget-over strong{color:#ee9a9a}
+.mobile-column-label{display:none}
+.budget-chart-summary strong{font:800 20px Manrope,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.6px}
+@media(max-width:760px){
+ .budget-table-head{display:none}
+ .budget-table-row{grid-template-columns:minmax(0,1fr) minmax(95px,.7fr);gap:12px;padding:15px 16px}
+ .budget-table-category{grid-column:1/-1}
+ .budget-planned-cell,.budget-number-cell{min-height:39px}
+ .budget-planned-cell{grid-column:1}
+ .budget-number-cell{grid-column:2;justify-content:flex-end;gap:6px}
+ .mobile-column-label{display:inline;color:#8792a1;font-size:8px;font-weight:800;letter-spacing:.7px}
+ .budget-number-cell strong,.budget-planned-cell input{font-size:14px}
+}
