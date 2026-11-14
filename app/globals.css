@@ -340,3 +340,16 @@
 .budget-pie-empty{min-height:220px;display:grid;place-items:center;line-height:1.6}
 @media(max-width:1050px){.budget-workspace-grid{grid-template-columns:minmax(0,1.45fr) minmax(245px,.85fr);gap:12px}}
 @media(max-width:760px){.budget-workspace-grid{grid-template-columns:1fr}.budget-workspace-grid .budget-chart-card{position:static;grid-row:2}.budget-workspace-grid .budget-chart-card .section-heading{flex-direction:row;align-items:flex-start}.budget-workspace-grid .budget-chart-wrap{height:270px}.budget-workspace-grid .budget-chart-summary{grid-template-columns:1fr 1fr}}
+
+
+/* Make the budget period unmistakable above category targets */
+.budget-category-column{min-width:0}
+.budget-scope-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 17px;margin-bottom:12px;border:1px solid rgba(202,158,230,.18);border-radius:14px;background:linear-gradient(110deg,rgba(202,158,230,.09),rgba(255,255,255,.025))}
+.budget-scope-bar>div:first-child{display:grid;gap:4px;min-width:0}
+.budget-scope-bar strong{font:600 14px Manrope,sans-serif;color:#ead8f7}
+.budget-scope-bar span:not(.budget-period-control span){font-size:10px;color:#929ba9;line-height:1.5}
+.budget-period-control{display:flex;flex-shrink:0;gap:3px;padding:3px;border:1px solid #ffffff12;border-radius:10px;background:#11172088}
+.budget-period-control button{border:0;border-radius:7px;padding:8px 11px;background:transparent;color:#929ba9;font-size:10px;white-space:nowrap}
+.budget-period-control button.selected{background:rgba(202,158,230,.2);color:#ead8f7;box-shadow:0 1px 5px #0004}
+.budget-table-head span:nth-child(2){white-space:normal;line-height:1.35}
+@media(max-width:520px){.budget-scope-bar{align-items:flex-start;flex-direction:column}.budget-period-control{width:100%}.budget-period-control button{flex:1}}
