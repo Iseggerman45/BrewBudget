@@ -308,6 +308,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const [categoryBudget, setCategoryBudget] = useState("");
   const [categoryColor, setCategoryColor] = useState("#CA9EE6");
   const [budgetPeriod, setBudgetPeriod] = useState<"monthly" | "biweekly">("biweekly");
+  const [adaptiveBudget, setAdaptiveBudget] = useState(true);
   const [savingCategory, setSavingCategory] = useState(false);
   const [budgetMessage, setBudgetMessage] = useState("");
   const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Plan what you expect to spend, then compare it with what you actually spend.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
@@ -332,6 +333,46 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     } catch (error) {
       setBudgetMessage(error instanceof Error ? error.message : "Couldn't save that budget.");
     } finally { setSavingCategory(false); }
+  }
+
+  async function changeBudgetPeriod(nextPeriod: "monthly" | "biweekly") {
+    if (nextPeriod === budgetPeriod || savingCategory) return;
+    setBudgetMessage("");
+    if (!adaptiveBudget) {
+      setBudgetPeriod(nextPeriod);
+      setBudgetMessage("Period changed. Category amounts were not converted.");
+      return;
+    }
+    if (!userId) {
+      setBudgetPeriod(nextPeriod);
+      return;
+    }
+    const multiplier = budgetPeriod === "biweekly" && nextPeriod === "monthly" ? 2 : 0.5;
+    setSavingCategory(true);
+    try {
+      const supabase = createClient();
+      const converted = categories.map(category => ({
+        ...category,
+        budget: Math.round(category.budget * multiplier * 100) / 100
+      }));
+      for (const category of converted) {
+        if (!category.id || category.budget === 0) continue;
+        const { data: existing, error: lookupError } = await supabase.from("budgets")
+          .select("id").eq("owner_id", userId).eq("category_id", category.id).limit(1).maybeSingle();
+        if (lookupError) throw lookupError;
+        const result = existing
+          ? await supabase.from("budgets").update({ amount: category.budget, period_type: nextPeriod }).eq("id", existing.id)
+          : await supabase.from("budgets").insert({ owner_id: userId, category_id: category.id, amount: category.budget, period_type: nextPeriod, rollover_enabled: false });
+        if (result.error) throw result.error;
+      }
+      converted.forEach(category => onCategoryChange(category));
+      setBudgetPeriod(nextPeriod);
+      setBudgetMessage(`Adaptive budgets converted to ${nextPeriod === "monthly" ? "monthly" : "per-paycheck"} amounts.`);
+    } catch (error) {
+      setBudgetMessage(error instanceof Error ? error.message : "Couldn't convert your budget amounts.");
+    } finally {
+      setSavingCategory(false);
+    }
   }
 
   async function deleteCategory(category: CategoryItem) {
@@ -390,9 +431,10 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
           <div className="budget-scope-bar">
             <div><div className="card-label">BUDGETING PERIOD</div><strong>{budgetPeriod === "monthly" ? "Monthly budget" : "Per-paycheck budget"}</strong><span>Enter the amount you want to set aside for each category {budgetPeriod === "monthly" ? "each month" : "every payday"}.</span></div>
             <div className="budget-period-control" role="group" aria-label="Budgeting period">
-              <button type="button" className={budgetPeriod === "biweekly" ? "selected" : ""} onClick={() => setBudgetPeriod("biweekly")}>Per paycheck</button>
-              <button type="button" className={budgetPeriod === "monthly" ? "selected" : ""} onClick={() => setBudgetPeriod("monthly")}>Monthly</button>
+              <button type="button" className={budgetPeriod === "biweekly" ? "selected" : ""} onClick={() => void changeBudgetPeriod("biweekly")}>Per paycheck</button>
+              <button type="button" className={budgetPeriod === "monthly" ? "selected" : ""} onClick={() => void changeBudgetPeriod("monthly")}>Monthly</button>
             </div>
+            <label className="adaptive-budget-toggle"><input type="checkbox" checked={adaptiveBudget} onChange={event => setAdaptiveBudget(event.target.checked)}/><span className="adaptive-switch"/><span><strong>Adaptive amounts</strong><small>{adaptiveBudget ? "Automatically doubles or halves category targets when you switch periods." : "Switching periods won't change category amounts."}</small></span></label>
           </div>
           <div className="budget-category-list"><div className="budget-table">
           <div className="budget-table-head"><span>CATEGORY</span><span>PLANNED ({budgetPeriod === "monthly" ? "MONTHLY" : "PER PAYCHECK"})</span><span>SPENT</span><span>REMAINING</span></div>
