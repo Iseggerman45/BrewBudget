@@ -443,25 +443,25 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   }
   const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Plan what you expect to spend, then compare it with what you actually spend.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
 
-  async function saveBudget(category: CategoryItem, amountValue: string) {
-    if (!userId || !category.id) return;
+  async function saveBudget(category: CategoryItem, amountValue: string, ownerId: string | null = userId) {
+    if (!ownerId || !category.id) return;
     const amount = Number(amountValue);
     if (!Number.isFinite(amount) || amount < 0) { setBudgetMessage("Enter a valid budget amount."); return; }
-    setSavingCategory(true); setBudgetMessage("");
+    setSavingCategory(true);
     try {
       const supabase = createClient();
       const { data: existing, error: lookupError } = await supabase.from("budgets")
-        .select("id").eq("owner_id", userId).eq("category_id", category.id).limit(1).maybeSingle();
+        .select("id").eq("owner_id", ownerId).eq("category_id", category.id).limit(1).maybeSingle();
       if (lookupError) throw lookupError;
-      const payload = { owner_id: userId, category_id: category.id, amount, period_type: budgetPeriod, rollover_enabled: false };
+      const payload = { owner_id: ownerId, category_id: category.id, amount, period_type: budgetPeriod, rollover_enabled: false };
       const result = existing
         ? await supabase.from("budgets").update({ amount, period_type: budgetPeriod }).eq("id", existing.id)
         : await supabase.from("budgets").insert(payload);
       if (result.error) throw result.error;
       onCategoryChange({ ...category, budget: amount });
-      setBudgetMessage("Budget saved.");
+      setBudgetMessage(`“${category.name}” was added and its budget was saved.`);
     } catch (error) {
-      setBudgetMessage(error instanceof Error ? error.message : "Couldn't save that budget.");
+      setBudgetMessage(`“${category.name}” was added, but its budget couldn't be saved: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally { setSavingCategory(false); }
   }
 
@@ -570,21 +570,23 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
       };
       onCategoryChange(created);
 
-      if (categoryBudget.trim()) {
-        const amount = Number(categoryBudget);
-        if (!Number.isFinite(amount) || amount < 0) {
-          setBudgetMessage("Category added, but the budget amount wasn't valid. You can add the budget from the category row.");
-        } else {
-          await saveBudget(created, categoryBudget);
-        }
-      } else {
-        setBudgetMessage("Category added to your budget.");
-      }
-
+      // Close and reset as soon as the category itself is saved. An optional
+      // budget save happens afterward and must not keep the category form open.
       setCategoryName("");
       setCategoryBudget("");
       setCategoryIcon("receipt");
+      setCategoryColor("#CA9EE6");
       setShowCategoryForm(false);
+      setBudgetMessage(`“${name}” category added successfully.`);
+
+      if (categoryBudget.trim()) {
+        const amount = Number(categoryBudget);
+        if (!Number.isFinite(amount) || amount < 0) {
+          setBudgetMessage(`“${name}” was added, but the budget amount wasn't valid. You can set it from the category row.`);
+        } else {
+          await saveBudget(created, categoryBudget, activeUserId);
+        }
+      }
     } catch (error) {
       setBudgetMessage(error instanceof Error ? error.message : "Couldn't create that category. Please try again.");
     } finally {
