@@ -379,7 +379,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
             <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{category.budget > 0 ? money(remaining) : "—"}</strong></div>
           </section>;
         })}
-      </div>
+      </div></div>
       {budgetMessage && <p className="budget-feedback">{budgetMessage}</p>}
     </> :
     tab === "Accounts" ? <BankConnections/> :
