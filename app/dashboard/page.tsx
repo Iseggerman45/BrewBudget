@@ -29,11 +29,11 @@ const initialTransactions: Transaction[] = [
 ];
 
 const categories = [
-  { name: "Housing", spent: 950, budget: 1200, color: "#A6D189", icon: "home" },
-  { name: "Groceries", spent: 284, budget: 400, color: "#8CAAEE", icon: "shopping" },
-  { name: "Coffee & dining", spent: 96, budget: 160, color: "#E5A86A", icon: "coffee" },
-  { name: "Transportation", spent: 118, budget: 180, color: "#CA9EE6", icon: "car" },
-  { name: "Utilities", spent: 86, budget: 140, color: "#E78284", icon: "zap" },
+  { name: "Housing", spent: 0, budget: 0, color: "#A6D189", icon: "home" },
+  { name: "Groceries", spent: 0, budget: 0, color: "#8CAAEE", icon: "shopping" },
+  { name: "Coffee & dining", spent: 0, budget: 0, color: "#E5A86A", icon: "coffee" },
+  { name: "Transportation", spent: 0, budget: 0, color: "#CA9EE6", icon: "car" },
+  { name: "Utilities", spent: 0, budget: 0, color: "#E78284", icon: "zap" },
 ];
 
 const monthlyChart = [
@@ -140,8 +140,9 @@ export default function Dashboard() {
       if (budget) {
         const nextSpent = (budgetSpent[newCategory] ?? budget.spent) + amount;
         setBudgetSpent(current => ({ ...current, [newCategory]: nextSpent }));
-        if (nextSpent <= budget.budget) { expenseFeedback = `Nice — still under your ${newCategory.toLowerCase()} budget`; playFeedback("success"); }
-        else { expenseFeedback = `${newCategory} budget reached — keep an eye on it`; playFeedback("tap"); }
+        if (budget.budget > 0 && nextSpent <= budget.budget) { expenseFeedback = `Nice — still under your ${newCategory.toLowerCase()} budget`; playFeedback("success"); }
+        else if (budget.budget > 0) { expenseFeedback = `${newCategory} budget reached — keep an eye on it`; playFeedback("tap"); }
+        else { expenseFeedback = `Expense recorded. Set a ${newCategory.toLowerCase()} budget when you're ready`; playFeedback("tap"); }
       } else playFeedback("tap");
     }
     setNewName(""); setNewAmount(""); setShowAdd(false);
@@ -215,7 +216,7 @@ export default function Dashboard() {
 
               <section className="glass-card budget-card">
                 <div className="section-heading"><div><div className="card-label">SPENDING PLAN</div><h2>Budget categories</h2><p>A little awareness goes a long way.</p></div><button className="more-button" onClick={() => setTab("Budgets")}><Ellipsis size={20}/></button></div>
-                <div className="category-list">{categories.slice(0,4).map((c) => { const spent = budgetSpent[c.name] ?? c.spent; return <div className="category-item" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{ background: c.color }}/>{c.name}</div><div className="category-amount">{money(spent)} <span>/ {money(c.budget)}</span></div></div><div className="progress-track"><div className="progress-fill" style={{ width: (Math.min(100,spent/c.budget*100))+"%", background: c.color }}/></div><div className="category-remaining">{spent <= c.budget ? `${money(c.budget-spent)} left` : `${money(spent-c.budget)} over budget`}</div></div>; })}</div>
+                <div className="category-list">{categories.slice(0,4).map((c) => { const spent = budgetSpent[c.name] ?? c.spent; return <div className="category-item" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{ background: c.color }}/>{c.name}</div><div className="category-amount">{c.budget > 0 ? <>{money(spent)} <span>/ {money(c.budget)}</span></> : <span>No budget set</span>}</div></div><div className="progress-track"><div className="progress-fill" style={{ width: (c.budget > 0 ? Math.min(100,spent/c.budget*100) : 0)+"%", background: c.color }}/></div><div className="category-remaining">{c.budget > 0 ? (spent <= c.budget ? `${money(c.budget-spent)} left` : `${money(spent-c.budget)} over budget`) : "Set a budget to start tracking"}</div></div>; })}</div>
                 <button className="text-link" onClick={() => setTab("Budgets")}>View all categories <ChevronRight size={15}/></button>
               </section>
             </div>
@@ -251,7 +252,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Give every category a thoughtful spending limit.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> BREWBUDGET WORKSPACE</div><div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>{(tab === "Transactions" || tab === "Budgets") && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button>}</div>
   {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
-  tab === "Budgets" ? <div className="subpage-categories">{categories.map(c=>{const spent=budgetSpent[c.name] ?? c.spent; return <section className="glass-card category-detail" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{background:c.color}}/>{c.name}</div><strong>{money(spent)} <span className="muted-text">/ {money(c.budget)}</span></strong></div><div className="progress-track"><div className="progress-fill" style={{width:(spent/c.budget*100)+"%",background:c.color}}/></div><div className="category-remaining">{spent<=c.budget ? `${money(c.budget-spent)} remaining` : `${money(spent-c.budget)} over budget`}</div></section>;})}</div> :
+  tab === "Budgets" ? <div className="subpage-categories">{categories.map(c=>{const spent=budgetSpent[c.name] ?? c.spent; return <section className="glass-card category-detail" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{background:c.color}}/>{c.name}</div><strong>{c.budget > 0 ? <>{money(spent)} <span className="muted-text">/ {money(c.budget)}</span></> : <span className="muted-text">No budget set</span>}</strong></div><div className="progress-track"><div className="progress-fill" style={{width:(c.budget > 0 ? Math.min(100,spent/c.budget*100) : 0)+"%",background:c.color}}/></div><div className="category-remaining">{c.budget > 0 ? (spent<=c.budget ? `${money(c.budget-spent)} remaining` : `${money(spent-c.budget)} over budget`) : "Set a budget to start tracking"}</div></section>;})}</div> :
   tab === "Accounts" ? <BankConnections/> :
   tab === "Goals" ? <div className="subpage-categories"><section className="glass-card goal-card"><div className="goal-icon"><Heart size={20}/></div><div className="goal-main"><strong>Emergency fund</strong><p>Building a little breathing room.</p><div className="progress-track"><div className="progress-fill" style={{width:"64%",background:"#A6D189"}}/></div><div className="category-remaining">$3,200 of $5,000 saved · 64%</div></div></section><section className="glass-card goal-card"><div className="goal-icon purple"><Target size={20}/></div><div className="goal-main"><strong>Weekend getaway</strong><p>Something fun to look forward to.</p><div className="progress-track"><div className="progress-fill" style={{width:"38%",background:"#CA9EE6"}}/></div><div className="category-remaining">$380 of $1,000 saved · 38%</div></div></section></div> :
   <section className="glass-card report-placeholder"><div className="report-art"><TrendingUp size={32}/></div><h2>Your money story, over time.</h2><p>Reports will bring your spending patterns, cash flow, and savings progress together in one thoughtful view.</p></section>}
