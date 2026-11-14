@@ -13,7 +13,7 @@ import {
   Menu, Landmark, PiggyBank, ReceiptText, Trash2
 } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis
+  Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis
 } from "recharts";
 
 type Period = "Monthly" | "Biweekly";
@@ -385,25 +385,27 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         <div className="add-category-title"><div><div className="card-label">MAKE IT YOURS</div><h2>New budget category</h2></div><button type="button" className="more-button" onClick={() => setShowCategoryForm(false)} aria-label="Close"><X size={18}/></button></div>
         <div className="add-category-fields"><label>Category name<input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} placeholder="e.g. Pet care" required maxLength={40}/></label><label>Expected budget<input type="number" min="0" step="0.01" value={categoryBudget} onChange={event => setCategoryBudget(event.target.value)} placeholder="Optional"/></label><label>Color<select value={categoryColor} onChange={event => setCategoryColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label><button className="primary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Add category"}</button></div>
       </form>}
-      <section className="glass-card budget-chart-card">
-        <div className="section-heading"><div><div className="card-label">PLAN VS REALITY</div><h2>Budgeted vs. spent</h2><p>See what you planned alongside what actually went out.</p></div><select className="budget-period-select" value={budgetPeriod} onChange={event => setBudgetPeriod(event.target.value as "monthly" | "biweekly")}><option value="biweekly">Per paycheck</option><option value="monthly">Monthly</option></select></div>
-        {categories.length ? <div className="budget-chart-wrap"><ResponsiveContainer width="100%" height={260}><BarChart data={categories} margin={{top:12,right:8,left:0,bottom:8}} barGap={5}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff12" vertical={false}/><XAxis dataKey="name" tick={{fill:"#9ba5b4",fontSize:10}} axisLine={false} tickLine={false}/><YAxis tick={{fill:"#8792a1",fontSize:10}} axisLine={false} tickLine={false} tickFormatter={(value)=>"$"+value}/><Tooltip contentStyle={{background:"#202733",border:"1px solid #ffffff20",borderRadius:10,color:"#f2f0e9",fontSize:11}} formatter={(value)=>money(Number(value))}/><Legend wrapperStyle={{fontSize:10,color:"#aab2bf"}}/><Bar dataKey="budget" name="Budgeted (expected)" fill="#CA9EE6" radius={[5,5,0,0]}/><Bar dataKey="spent" name="Spent (actual)" fill="#8CAAEE" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div> : <div className="empty-state">Add a category to start planning your spending.</div>}
-        <div className="budget-chart-summary"><div><span className="budget-legend-dot expected-dot"/> <small>Total budgeted</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0))}</strong></div><div><span className="budget-legend-dot actual-dot"/> <small>Actual spent</small><strong>{money(categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div><div><small>Remaining</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0)-categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div></div>
-      </section>
-      <div className="budget-category-list"><div className="budget-table">
-        <div className="budget-table-head"><span>CATEGORY</span><span>PLANNED</span><span>SPENT</span><span>REMAINING</span></div>
-        {categories.map(category => {
-          const spent = budgetSpent[category.name] ?? category.spent;
-          const remaining = category.budget - spent;
-          const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
-          return <section className="budget-table-row" key={category.id ?? category.name}>
-            <div className="budget-table-category"><span className="category-dot" style={{background:category.color}}/><strong>{category.name}</strong><div className="budget-row-progress"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div><button type="button" className="budget-delete-category" onClick={() => void deleteCategory(category)} disabled={savingCategory} aria-label={`Remove ${category.name} category`} title="Remove category"><Trash2 size={14}/></button></div>
-            <label className="budget-planned-cell"><span className="mobile-column-label">PLANNED</span><span className="budget-currency">$</span><input aria-label={"Planned budget for "+category.name} name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="0" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></label>
-            <div className="budget-number-cell"><span className="mobile-column-label">SPENT</span><strong>{money(spent)}</strong></div>
-            <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{category.budget > 0 ? money(remaining) : "—"}</strong></div>
-          </section>;
-        })}
-      </div></div>
+      <div className="budget-workspace-grid">
+        <div className="budget-category-list"><div className="budget-table">
+          <div className="budget-table-head"><span>CATEGORY</span><span>PLANNED</span><span>SPENT</span><span>REMAINING</span></div>
+          {categories.map(category => {
+            const spent = budgetSpent[category.name] ?? category.spent;
+            const remaining = category.budget - spent;
+            const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
+            return <section className="budget-table-row" key={category.id ?? category.name}>
+              <div className="budget-table-category"><span className="category-dot" style={{background:category.color}}/><strong>{category.name}</strong><div className="budget-row-progress"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div><button type="button" className="budget-delete-category" onClick={() => void deleteCategory(category)} disabled={savingCategory} aria-label={`Remove ${category.name} category`} title="Remove category"><Trash2 size={14}/></button></div>
+              <label className="budget-planned-cell"><span className="mobile-column-label">PLANNED</span><span className="budget-currency">$</span><input aria-label={"Planned budget for "+category.name} name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="0" onBlur={event => { if (event.currentTarget.value !== String(category.budget || "")) void saveBudget(category,event.currentTarget.value); }}/></label>
+              <div className="budget-number-cell"><span className="mobile-column-label">SPENT</span><strong>{money(spent)}</strong></div>
+              <div className={"budget-number-cell "+(remaining < 0 ? "budget-over" : "budget-under")}><span className="mobile-column-label">REMAINING</span><strong>{category.budget > 0 ? money(remaining) : "—"}</strong></div>
+            </section>;
+          })}
+        </div></div>
+        <section className="glass-card budget-chart-card">
+          <div className="section-heading"><div><div className="card-label">SPENDING MIX</div><h2>Where it goes</h2><p>Actual spending by category.</p></div><select className="budget-period-select" value={budgetPeriod} onChange={event => setBudgetPeriod(event.target.value as "monthly" | "biweekly")}><option value="biweekly">Per paycheck</option><option value="monthly">Monthly</option></select></div>
+          {categories.some(category => (budgetSpent[category.name] ?? category.spent) > 0) ? <div className="budget-chart-wrap"><ResponsiveContainer width="100%" height={235}><PieChart><Pie data={categories.filter(category => (budgetSpent[category.name] ?? category.spent) > 0).map(category => ({name:category.name,value:budgetSpent[category.name] ?? category.spent,color:category.color}))} dataKey="value" nameKey="name" cx="50%" cy="48%" innerRadius={57} outerRadius={88} paddingAngle={3} stroke="none"><Cell key="slice-default" fill="#CA9EE6"/>{categories.filter(category => (budgetSpent[category.name] ?? category.spent) > 0).map(category => <Cell key={category.id ?? category.name} fill={category.color}/>)}</Pie><Tooltip contentStyle={{background:"#202733",border:"1px solid #ffffff20",borderRadius:10,color:"#f2f0e9",fontSize:11}} formatter={(value)=>money(Number(value))}/><Legend layout="vertical" align="center" verticalAlign="bottom" wrapperStyle={{fontSize:10,color:"#aab2bf"}}/></PieChart></ResponsiveContainer></div> : <div className="empty-state budget-pie-empty">Your category breakdown will appear once you record spending.</div>}
+          <div className="budget-chart-summary"><div><small>Total planned</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0))}</strong></div><div><small>Total spent</small><strong>{money(categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div><div><small>Left to budget</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0)-categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div></div>
+        </section>
+      </div>
       {budgetMessage && <p className="budget-feedback">{budgetMessage}</p>}
     </> :
     tab === "Accounts" ? <BankConnections/> :
