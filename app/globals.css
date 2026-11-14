@@ -371,4 +371,6 @@
 /* Distinct visual symbols for each budget category */
 .budget-category-symbol{width:29px;height:29px;flex:0 0 29px;border-radius:9px;display:grid;place-items:center}
 .budget-category-symbol svg{width:15px;height:15px;stroke-width:1.9}
-.budget-table-category{gap:9px}
+.budget-table-category{grid-template-columns:29px minmax(0,1fr);column-gap:10px;row-gap:4px;align-items:center}
+.budget-table-category>strong{min-width:0;overflow-wrap:anywhere}
+.budget-table-category>.budget-row-progress{grid-column:2;min-width:0}
