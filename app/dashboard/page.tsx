@@ -324,6 +324,67 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const [adaptiveBudget, setAdaptiveBudget] = useState(true);
   const [savingCategory, setSavingCategory] = useState(false);
   const [budgetMessage, setBudgetMessage] = useState("");
+  type BillItem = { id: string; name: string; amount: number; frequency: string; due_day: number | null; next_due_date: string | null; autopay: boolean; category_id: string | null };
+  const [bills, setBills] = useState<BillItem[]>([]);
+  const [showBillForm, setShowBillForm] = useState(false);
+  const [billName, setBillName] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [billDueDate, setBillDueDate] = useState("");
+  const [billFrequency, setBillFrequency] = useState("monthly");
+  const [billAutopay, setBillAutopay] = useState(false);
+  const [savingBill, setSavingBill] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "Budgets" || !userId) return;
+    let active = true;
+    async function loadBills() {
+      const { data, error } = await createClient().from("bills")
+        .select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id")
+        .eq("owner_id", userId).eq("is_active", true).order("next_due_date", { ascending: true, nullsFirst: false });
+      if (!active) return;
+      if (error) { setBudgetMessage("Couldn't load bills: " + error.message); return; }
+      setBills((data ?? []) as BillItem[]);
+    }
+    void loadBills();
+    return () => { active = false; };
+  }, [tab, userId]);
+
+  async function addBill(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!userId || !billName.trim() || !billAmount || !billDueDate) return;
+    const amount = Number(billAmount);
+    if (!Number.isFinite(amount) || amount <= 0) { setBudgetMessage("Enter a valid bill amount."); return; }
+    setSavingBill(true); setBudgetMessage("");
+    try {
+      const dueDate = new Date(billDueDate + "T12:00:00");
+      const payload = {
+        owner_id: userId, name: billName.trim(), amount, frequency: billFrequency,
+        due_day: dueDate.getDate(), next_due_date: billDueDate, autopay: billAutopay,
+        category_id: null
+      };
+      const { data, error } = await createClient().from("bills")
+        .insert(payload).select("id,name,amount,frequency,due_day,next_due_date,autopay,category_id").single();
+      if (error) throw error;
+      setBills(current => [...current, data as BillItem].sort((a,b) => (a.next_due_date ?? "9999").localeCompare(b.next_due_date ?? "9999")));
+      setBillName(""); setBillAmount(""); setBillDueDate(""); setBillFrequency("monthly"); setBillAutopay(false); setShowBillForm(false);
+      setBudgetMessage("Bill added.");
+    } catch (error) {
+      setBudgetMessage(error instanceof Error ? error.message : "Couldn't save that bill.");
+    } finally { setSavingBill(false); }
+  }
+
+  async function removeBill(bill: BillItem) {
+    if (!window.confirm(`Remove "${bill.name}" from your bills?`)) return;
+    setSavingBill(true);
+    try {
+      const { error } = await createClient().from("bills").update({ is_active: false }).eq("id", bill.id).eq("owner_id", userId);
+      if (error) throw error;
+      setBills(current => current.filter(item => item.id !== bill.id));
+      setBudgetMessage("Bill removed.");
+    } catch (error) {
+      setBudgetMessage(error instanceof Error ? error.message : "Couldn't remove that bill.");
+    } finally { setSavingBill(false); }
+  }
   const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Plan what you expect to spend, then compare it with what you actually spend.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
 
   async function saveBudget(category: CategoryItem, amountValue: string) {
@@ -439,8 +500,36 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
         <div className="add-category-title"><div><div className="card-label">MAKE IT YOURS</div><h2>New budget category</h2></div><button type="button" className="more-button" onClick={() => setShowCategoryForm(false)} aria-label="Close"><X size={18}/></button></div>
         <div className="add-category-fields"><label>Category name<input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} placeholder="e.g. Pet care" required maxLength={40}/></label><label>Expected budget ({budgetPeriod === "monthly" ? "per month" : "per paycheck"})<input type="number" min="0" step="0.01" value={categoryBudget} onChange={event => setCategoryBudget(event.target.value)} placeholder="Optional"/></label><label>Color<select value={categoryColor} onChange={event => setCategoryColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label><button className="primary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Add category"}</button></div>
       </form>}
+      <section className="glass-card bills-panel">
+        <div className="bills-panel-heading">
+          <div><div className="card-label">FIXED EXPENSES</div><h2><CalendarDays size={19}/> Monthly bills</h2><p>Keep rent, utilities, insurance, and other due dates in one place.</p></div>
+          <div className="bills-panel-total"><span>Scheduled bills</span><strong>{money(bills.reduce((sum, bill) => sum + Number(bill.amount), 0))}</strong><small>Across {bills.length} bill{bills.length === 1 ? "" : "s"}</small></div>
+          <button className="secondary-button" type="button" onClick={() => setShowBillForm(value => !value)}><Plus size={15}/> Add bill</button>
+        </div>
+        {showBillForm && <form className="bill-entry-form" onSubmit={addBill}>
+          <label>Bill name<input value={billName} onChange={event => setBillName(event.target.value)} placeholder="e.g. Electricity" maxLength={60} required/></label>
+          <label>Amount ($)<input type="number" min="0.01" step="0.01" value={billAmount} onChange={event => setBillAmount(event.target.value)} placeholder="150.00" required/></label>
+          <label>Next due date<input type="date" value={billDueDate} onChange={event => setBillDueDate(event.target.value)} required/></label>
+          <label>Repeats<select value={billFrequency} onChange={event => setBillFrequency(event.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></label>
+          <label className="bill-autopay"><input type="checkbox" checked={billAutopay} onChange={event => setBillAutopay(event.target.checked)}/> Auto-pay</label>
+          <button className="primary-button" type="submit" disabled={savingBill}>{savingBill ? "Saving…" : "Save bill"}</button>
+        </form>}
+        {bills.length ? <div className="bill-list">{bills.map(bill => {
+          const due = bill.next_due_date ? new Date(bill.next_due_date + "T12:00:00") : null;
+          const dueLabel = due ? due.toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric"}) : "Date not set";
+          const daysUntil = due ? Math.ceil((due.getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) : null;
+          return <div className="bill-row" key={bill.id}>
+            <div className="bill-row-icon"><CalendarDays size={17}/></div>
+            <div className="bill-row-name"><strong>{bill.name}</strong><span>{bill.frequency === "monthly" ? "Monthly" : bill.frequency === "biweekly" ? "Every 2 weeks" : bill.frequency[0].toUpperCase()+bill.frequency.slice(1)}{bill.autopay ? " · Auto-pay" : ""}</span></div>
+            <div className="bill-row-due"><span>Next due</span><strong>{dueLabel}</strong><small>{daysUntil === null ? "" : daysUntil < 0 ? `${Math.abs(daysUntil)} days overdue` : daysUntil === 0 ? "Due today" : `In ${daysUntil} days`}</small></div>
+            <strong className="bill-row-amount">{money(Number(bill.amount))}</strong>
+            <button type="button" className="bill-remove" onClick={() => void removeBill(bill)} disabled={savingBill} aria-label={`Remove ${bill.name}`}><Trash2 size={15}/></button>
+          </div>;
+        })}</div> : <div className="bills-empty"><CalendarDays size={22}/><strong>No bills added yet</strong><span>Add rent, utilities, insurance, or any recurring payment to start tracking due dates.</span></div>}
+      </section>
       <div className="budget-workspace-grid">
         <div className="budget-category-column">
+          <div className="spending-section-heading"><div className="card-label">FLEXIBLE EXPENSES</div><h2>Everyday spending</h2><p>Plan groceries, dining, shopping, and the day-to-day stuff.</p></div>
           <div className="budget-scope-bar">
             <div><div className="card-label">BUDGETING PERIOD</div><strong>{budgetPeriod === "monthly" ? "Monthly budget" : "Per-paycheck budget"}</strong><span>Enter the amount you want to set aside for each category {budgetPeriod === "monthly" ? "each month" : "every payday"}.</span></div>
             <div className="budget-period-control" role="group" aria-label="Budgeting period">
