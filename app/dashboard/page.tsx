@@ -280,12 +280,94 @@ function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => voi
 }
 
 function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, categories, userId, onCategoryChange }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; categories: CategoryItem[]; userId: string | null; onCategoryChange: (category: CategoryItem)=>void }) {
-  const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Give every category a thoughtful spending limit.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
-  return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> BREWBUDGET WORKSPACE</div><div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>{(tab === "Transactions" || tab === "Budgets") && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button>}</div>
-  {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
-  tab === "Budgets" ? <div className="subpage-categories">{categories.map(c=>{const spent=budgetSpent[c.name] ?? c.spent; return <section className="glass-card category-detail" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{background:c.color}}/>{c.name}</div><strong>{c.budget > 0 ? <>{money(spent)} <span className="muted-text">/ {money(c.budget)}</span></> : <span className="muted-text">No budget set</span>}</strong></div><div className="progress-track"><div className="progress-fill" style={{width:(c.budget > 0 ? Math.min(100,spent/c.budget*100) : 0)+"%",background:c.color}}/></div><div className="category-remaining">{c.budget > 0 ? (spent<=c.budget ? `${money(c.budget-spent)} remaining` : `${money(spent-c.budget)} over budget`) : "Set a budget to start tracking"}</div></section>;})}</div> :
-  tab === "Accounts" ? <BankConnections/> :
-  tab === "Goals" ? <div className="subpage-categories"><section className="glass-card goal-card"><div className="goal-icon"><Heart size={20}/></div><div className="goal-main"><strong>Emergency fund</strong><p>Building a little breathing room.</p><div className="progress-track"><div className="progress-fill" style={{width:"64%",background:"#A6D189"}}/></div><div className="category-remaining">$3,200 of $5,000 saved · 64%</div></div></section><section className="glass-card goal-card"><div className="goal-icon purple"><Target size={20}/></div><div className="goal-main"><strong>Weekend getaway</strong><p>Something fun to look forward to.</p><div className="progress-track"><div className="progress-fill" style={{width:"38%",background:"#CA9EE6"}}/></div><div className="category-remaining">$380 of $1,000 saved · 38%</div></div></section></div> :
-  <section className="glass-card report-placeholder"><div className="report-art"><TrendingUp size={32}/></div><h2>Your money story, over time.</h2><p>Reports will bring your spending patterns, cash flow, and savings progress together in one thoughtful view.</p></section>}
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryBudget, setCategoryBudget] = useState("");
+  const [categoryColor, setCategoryColor] = useState("#CA9EE6");
+  const [budgetPeriod, setBudgetPeriod] = useState<"monthly" | "biweekly">("biweekly");
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [budgetMessage, setBudgetMessage] = useState("");
+  const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Plan what you expect to spend, then compare it with what you actually spend.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
+
+  async function saveBudget(category: CategoryItem, amountValue: string) {
+    if (!userId || !category.id) return;
+    const amount = Number(amountValue);
+    if (!Number.isFinite(amount) || amount < 0) { setBudgetMessage("Enter a valid budget amount."); return; }
+    setSavingCategory(true); setBudgetMessage("");
+    try {
+      const supabase = createClient();
+      const { data: existing, error: lookupError } = await supabase.from("budgets")
+        .select("id").eq("owner_id", userId).eq("category_id", category.id).eq("period_type", budgetPeriod).limit(1).maybeSingle();
+      if (lookupError) throw lookupError;
+      const payload = { owner_id: userId, category_id: category.id, amount, period_type: budgetPeriod, rollover_enabled: false };
+      const result = existing
+        ? await supabase.from("budgets").update({ amount, period_type: budgetPeriod }).eq("id", existing.id)
+        : await supabase.from("budgets").insert(payload);
+      if (result.error) throw result.error;
+      onCategoryChange({ ...category, budget: amount });
+      setBudgetMessage("Budget saved.");
+    } catch (error) {
+      setBudgetMessage(error instanceof Error ? error.message : "Couldn't save that budget.");
+    } finally { setSavingCategory(false); }
+  }
+
+  async function createCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!userId || !categoryName.trim()) return;
+    if (categories.some(item => item.name.toLowerCase() === categoryName.trim().toLowerCase())) {
+      setBudgetMessage("That category already exists."); return;
+    }
+    setSavingCategory(true); setBudgetMessage("");
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.from("categories").insert({
+        owner_id: userId, name: categoryName.trim(), category_type: "expense",
+        icon: "receipt", color: categoryColor
+      }).select("id,name,icon,color").single();
+      if (error) throw error;
+      const created: CategoryItem = { id: data.id, name: data.name, icon: data.icon ?? "receipt", color: data.color ?? categoryColor, spent: 0, budget: 0 };
+      onCategoryChange(created);
+      if (categoryBudget.trim()) await saveBudget(created, categoryBudget);
+      setCategoryName(""); setCategoryBudget(""); setShowCategoryForm(false);
+      setBudgetMessage("Category added to your budget.");
+    } catch (error) {
+      setBudgetMessage(error instanceof Error ? error.message : "Couldn't create that category.");
+    } finally { setSavingCategory(false); }
+  }
+
+  return <div className="subpage">
+    <div className="eyebrow"><span className="eyebrow-line"/> BREWBUDGET WORKSPACE</div>
+    <div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>
+      {(tab === "Transactions" || tab === "Budgets") && <div className="budget-heading-actions">{tab === "Budgets" && <button className="secondary-button" onClick={() => setShowCategoryForm(value => !value)}><Plus size={16}/> Category</button>}<button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button></div>}
+    </div>
+    {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
+    tab === "Budgets" ? <>
+      {showCategoryForm && <form className="glass-card add-category-form" onSubmit={createCategory}>
+        <div className="add-category-title"><div><div className="card-label">MAKE IT YOURS</div><h2>New budget category</h2></div><button type="button" className="more-button" onClick={() => setShowCategoryForm(false)} aria-label="Close"><X size={18}/></button></div>
+        <div className="add-category-fields"><label>Category name<input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} placeholder="e.g. Pet care" required maxLength={40}/></label><label>Expected budget<input type="number" min="0" step="0.01" value={categoryBudget} onChange={event => setCategoryBudget(event.target.value)} placeholder="Optional"/></label><label>Color<select value={categoryColor} onChange={event => setCategoryColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label><button className="primary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Add category"}</button></div>
+      </form>}
+      <section className="glass-card budget-chart-card">
+        <div className="section-heading"><div><div className="card-label">PLAN VS REALITY</div><h2>Budgeted vs. spent</h2><p>See what you planned alongside what actually went out.</p></div><select className="budget-period-select" value={budgetPeriod} onChange={event => setBudgetPeriod(event.target.value as "monthly" | "biweekly")}><option value="biweekly">Per paycheck</option><option value="monthly">Monthly</option></select></div>
+        {categories.length ? <div className="budget-chart-wrap"><ResponsiveContainer width="100%" height={260}><BarChart data={categories} margin={{top:12,right:8,left:0,bottom:8}} barGap={5}><CartesianGrid strokeDasharray="3 3" stroke="#ffffff12" vertical={false}/><XAxis dataKey="name" tick={{fill:"#9ba5b4",fontSize:10}} axisLine={false} tickLine={false}/><YAxis tick={{fill:"#8792a1",fontSize:10}} axisLine={false} tickLine={false} tickFormatter={(value)=>"$"+value}/><Tooltip contentStyle={{background:"#202733",border:"1px solid #ffffff20",borderRadius:10,color:"#f2f0e9",fontSize:11}} formatter={(value)=>money(Number(value))}/><Legend wrapperStyle={{fontSize:10,color:"#aab2bf"}}/><Bar dataKey="budget" name="Budgeted (expected)" fill="#CA9EE6" radius={[5,5,0,0]}/><Bar dataKey="spent" name="Spent (actual)" fill="#8CAAEE" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div> : <div className="empty-state">Add a category to start planning your spending.</div>}
+        <div className="budget-chart-summary"><div><span className="budget-legend-dot expected-dot"/> <small>Total budgeted</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0))}</strong></div><div><span className="budget-legend-dot actual-dot"/> <small>Actual spent</small><strong>{money(categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div><div><small>Remaining</small><strong>{money(categories.reduce((sum,item)=>sum+item.budget,0)-categories.reduce((sum,item)=>sum+(budgetSpent[item.name] ?? item.spent),0))}</strong></div></div>
+      </section>
+      <div className="budget-category-list">{categories.map(category => {
+        const spent = budgetSpent[category.name] ?? category.spent;
+        const percent = category.budget > 0 ? Math.min(100, spent / category.budget * 100) : 0;
+        return <section className="glass-card budget-edit-card" key={category.id ?? category.name}>
+          <div className="budget-edit-top"><div className="category-name"><span className="category-dot" style={{background:category.color}}/>{category.name}</div><div className="budget-actual-label"><small>ACTUAL SPENT</small><strong>{money(spent)}</strong></div></div>
+          <form className="budget-edit-form" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const input = form.elements.namedItem("budget") as HTMLInputElement; void saveBudget(category,input.value); }}>
+            <label><span>Expected budget</span><div className="budget-input-wrap"><span>$</span><input name="budget" type="number" min="0" step="0.01" defaultValue={category.budget || ""} placeholder="Set amount"/></div></label>
+            <button className="secondary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Save budget"}</button>
+          </form>
+          <div className="progress-track"><div className="progress-fill" style={{width:percent+"%",background:category.color}}/></div>
+          <div className="category-remaining">{category.budget > 0 ? (spent <= category.budget ? money(category.budget-spent)+" remaining" : money(spent-category.budget)+" over budget") : "Set an expected budget to compare against actual spending"}</div>
+        </section>;
+      })}</div>
+      {budgetMessage && <p className="budget-feedback">{budgetMessage}</p>}
+    </> :
+    tab === "Accounts" ? <BankConnections/> :
+    tab === "Goals" ? <div className="subpage-categories"><section className="glass-card goal-card"><div className="goal-icon"><Heart size={20}/></div><div className="goal-main"><strong>Emergency fund</strong><p>Building a little breathing room.</p><div className="progress-track"><div className="progress-fill" style={{width:"64%",background:"#A6D189"}}/></div><div className="category-remaining">$3,200 of $5,000 saved · 64%</div></div></section><section className="glass-card goal-card"><div className="goal-icon purple"><Target size={20}/></div><div className="goal-main"><strong>Weekend getaway</strong><p>Something fun to look forward to.</p><div className="progress-track"><div className="progress-fill" style={{width:"38%",background:"#CA9EE6"}}/></div><div className="category-remaining">$380 of $1,000 saved · 38%</div></div></section></div> :
+    <section className="glass-card report-placeholder"><div className="report-art"><TrendingUp size={32}/></div><h2>Your money story, over time.</h2><p>Reports will bring your spending patterns, cash flow, and savings progress together in one thoughtful view.</p></section>}
   </div>;
 }
