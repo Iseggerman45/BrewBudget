@@ -250,7 +250,7 @@ export default function Dashboard() {
           <div><div className="brand-name">brew<span>budget</span></div><div className="brand-caption">A better daily grind.</div></div>
           <button className="icon-button sidebar-close" onClick={() => setShowMenu(false)} aria-label="Close menu"><X size={18}/></button>
         </div>
-        <div className="workspace-label">WORKSPACE</div>
+        <div className="workspace-label">YOUR COFFEE CORNER</div>
         <nav className="nav-list">
           {nav.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${tab === name ? "active" : ""}`} onClick={() => { setTab(name); setShowMenu(false); }}><Icon size={18}/><span>{name}</span>{name === "Budgets" && <span className="nav-dot"/>}</button>)}
         </nav>
@@ -258,9 +258,9 @@ export default function Dashboard() {
           <div className="daily-card">
             <div className="daily-icon"><Coffee size={17}/><Sparkles size={11}/></div>
             <div className="daily-eyebrow">YOUR DAILY GRIND</div>
-            <div className="daily-title">A little progress adds up.</div>
-            <div className="daily-copy">Take a moment to check in with your money.</div>
-            <button onClick={() => setTab("Overview")} className="daily-link">Take a coffee break <ChevronRight size={14}/></button>
+            <div className="daily-title">One cup at a time.</div>
+            <div className="daily-copy">A quick check-in today makes tomorrow feel lighter.</div>
+            <button onClick={() => setTab("Overview")} className="daily-link">Take a little breather <ChevronRight size={14}/></button>
           </div>
           <button className="nav-item settings" onClick={() => setToast("Settings are coming soon")}><Settings2 size={18}/><span>Settings</span></button>
           <div className="profile-row"><div className="avatar">B</div><div className="profile-copy"><strong>My workspace</strong><span>Personal budget</span></div><Ellipsis size={19} className="muted-icon"/></div>
@@ -284,27 +284,27 @@ export default function Dashboard() {
         <div className="content-wrap">
           {tab === "Overview" ? <>
             <div className="welcome-row">
-              <div><div className="eyebrow"><span className="eyebrow-line"/> FRIDAY, NOVEMBER 13, 2026</div><h1>Good morning<span className="wave">,</span> <em>let’s get grounded.</em></h1><p className="subtitle">A clear head and a little clarity go a long way.</p></div>
+              <div><div className="eyebrow"><span className="eyebrow-line"/> FRIDAY, NOVEMBER 13, 2026</div><h1>Good morning<span className="wave">,</span> <em>let’s get grounded.</em></h1><p className="subtitle">Your money routine, one good cup at a time.</p></div>
               <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/> Add expense</button>
             </div>
 
             <div className="period-row"><div className="period-control"><button className={period === "Monthly" ? "selected" : ""} onClick={() => setPeriod("Monthly")}>Monthly</button><button className={period === "Biweekly" ? "selected" : ""} onClick={() => setPeriod("Biweekly")}>Biweekly</button></div><button className="period-date">Nov 1 – Nov 14 <ChevronDown size={14}/></button><span className="period-note"><span className="live-dot"/> {period === "Biweekly" ? "Pay period · 4 days left" : "Monthly overview"}</span></div>
 
             <div className="summary-grid">
-              <div className="glass-card balance-card"><div className="card-top"><span className="card-label">AVAILABLE TO SPEND</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$0<span>.00</span></div><div className="balance-foot"><span className="muted-text">Add income and budgets to get started</span></div><div className="balance-glow"/></div>
-              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">INCOME THIS PERIOD</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">{money(expectedIncome)}</div><div className="metric-foot"><span className="metric-caption">{expectedIncome > 0 ? "Expected " + (payFrequency === "monthly" ? "monthly" : "per payday") : "Add your income in setup"}</span></div></div>
-              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">SPENT THIS PERIOD</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">No expenses recorded yet</span></div></div>
+              <div className="glass-card balance-card"><div className="card-top"><span className="card-label">READY FOR THE DAY</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$0<span>.00</span></div><div className="balance-foot"><span className="muted-text">A little setup goes a long way</span></div><div className="balance-glow"/></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">FRESHLY BREWED INCOME</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">{money(expectedIncome)}</div><div className="metric-foot"><span className="metric-caption">{expectedIncome > 0 ? "Expected " + (payFrequency === "monthly" ? "monthly" : "per payday") : "Add your income in setup"}</span></div></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">OUT THE DOOR</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">Nothing spent just yet</span></div></div>
             </div>
 
             <div className="dashboard-grid">
               <section className="glass-card chart-card">
-                <div className="section-heading"><div><div className="card-label">YOUR CASH FLOW</div><h2>Money in, money out</h2><p>See how your spending is moving over time.</p></div><button className="more-button"><Ellipsis size={20}/></button></div>
+                <div className="section-heading"><div><div className="card-label">THE DAILY POUR</div><h2>Money in, money out</h2><p>A little look at what’s flowing in and out.</p></div><button className="more-button"><Ellipsis size={20}/></button></div>
                 {chartData.length ? <><div className="chart-legend"><span><i className="legend-income"/> Income</span><span><i className="legend-spending"/> Spending</span></div>
-                <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 10, right: 5, left: -22, bottom: 0 }}><defs><linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#A6D189" stopOpacity={0.22}/><stop offset="95%" stopColor="#A6D189" stopOpacity={0}/></linearGradient><linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8CAAEE" stopOpacity={0.16}/><stop offset="95%" stopColor="#8CAAEE" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#ffffff" strokeOpacity={0.055} vertical={false}/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }}/><YAxis axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }} tickFormatter={(v) => "$"+v}/><Tooltip contentStyle={{ background: "#202630", border: "1px solid #ffffff20", borderRadius: 12, color: "#F2F0E9", fontSize: 12 }} formatter={(v) => money(Number(v))}/><Area type="monotone" dataKey="income" stroke="#A6D189" strokeWidth={2.4} fill="url(#incomeFill)" activeDot={{ r: 4 }}/><Area type="monotone" dataKey="spending" stroke="#8CAAEE" strokeWidth={2.4} fill="url(#spendFill)" activeDot={{ r: 4 }}/></AreaChart></ResponsiveContainer></div></> : <div className="empty-state">Your cash flow chart will appear once you add income or expenses.</div>}
+                <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 10, right: 5, left: -22, bottom: 0 }}><defs><linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#A6D189" stopOpacity={0.22}/><stop offset="95%" stopColor="#A6D189" stopOpacity={0}/></linearGradient><linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8CAAEE" stopOpacity={0.16}/><stop offset="95%" stopColor="#8CAAEE" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#ffffff" strokeOpacity={0.055} vertical={false}/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }}/><YAxis axisLine={false} tickLine={false} tick={{ fill: "#858D9B", fontSize: 11 }} tickFormatter={(v) => "$"+v}/><Tooltip contentStyle={{ background: "#202630", border: "1px solid #ffffff20", borderRadius: 12, color: "#F2F0E9", fontSize: 12 }} formatter={(v) => money(Number(v))}/><Area type="monotone" dataKey="income" stroke="#A6D189" strokeWidth={2.4} fill="url(#incomeFill)" activeDot={{ r: 4 }}/><Area type="monotone" dataKey="spending" stroke="#8CAAEE" strokeWidth={2.4} fill="url(#spendFill)" activeDot={{ r: 4 }}/></AreaChart></ResponsiveContainer></div></> : <div className="empty-state">Your first pour is waiting. Add income or an expense to see your money flow.</div>}
               </section>
 
               <section className="glass-card budget-card">
-                <div className="section-heading"><div><div className="card-label">SPENDING PLAN</div><h2>Budget categories</h2><p>A little awareness goes a long way.</p></div><button className="more-button" onClick={() => setTab("Budgets")}><Ellipsis size={20}/></button></div>
+                <div className="section-heading"><div><div className="card-label">YOUR BREW PLAN</div><h2>Budget categories</h2><p>Give every dollar a place to go.</p></div><button className="more-button" onClick={() => setTab("Budgets")}><Ellipsis size={20}/></button></div>
                 <div className="category-list">{categoryList.slice(0,4).map((c) => { const spent = budgetSpent[c.name] ?? c.spent; return <div className="category-item" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{ background: c.color }}/>{c.name}</div><div className="category-amount">{c.budget > 0 ? <>{money(spent)} <span>/ {money(c.budget)}</span></> : <span>No budget set</span>}</div></div><div className="progress-track"><div className="progress-fill" style={{ width: (c.budget > 0 ? Math.min(100,spent/c.budget*100) : 0)+"%", background: c.color }}/></div><div className="category-remaining">{c.budget > 0 ? (spent <= c.budget ? `${money(c.budget-spent)} left` : `${money(spent-c.budget)} over budget`) : "Set a budget to start tracking"}</div></div>; })}</div>
                 <button className="text-link" onClick={() => setTab("Budgets")}>View all categories <ChevronRight size={15}/></button>
               </section>
@@ -312,12 +312,12 @@ export default function Dashboard() {
 
             <div className="bottom-grid">
               <section className="glass-card transactions-card">
-                <div className="section-heading"><div><div className="card-label">THE LATEST</div><h2>Recent transactions</h2></div><button className="text-link" onClick={() => setTab("Transactions")}>See all <ChevronRight size={15}/></button></div>
-                {transactions.length ? <TransactionList transactions={transactions.slice(0,4)}/> : <div className="empty-state">No transactions yet. Add your first expense to get started.</div>}
+                <div className="section-heading"><div><div className="card-label">FRESH OFF THE PRESS</div><h2>Recent activity</h2></div><button className="text-link" onClick={() => setTab("Transactions")}>See all <ChevronRight size={15}/></button></div>
+                {transactions.length ? <TransactionList transactions={transactions.slice(0,4)}/> : <div className="empty-state">It’s quiet in here. Add your first expense and let’s get things brewing.</div>}
               </section>
-              <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Start with what matters most.</h2><p>Add your first income or expense, then create a budget that reflects how you want to use your money.</p><div className="insight-bottom"><span className="insight-spark">✳</span> A little progress adds up.</div></section>
+              <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Good things take a little time.</h2><p>Start with one small step. Add an expense, set a budget, or connect an account. You don’t have to do it all today.</p><div className="insight-bottom"><span className="insight-spark">✳</span> Small steps make a strong brew.</div></section>
             </div>
-            <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
+            <footer className="footer-note"><Coffee size={14}/> Made for the daily grind, at your own pace. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
           </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} setBudgetSpent={setBudgetSpent} categories={categoryList} userId={currentUserId} nextPayday={nextPayday} payFrequency={payFrequency} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }}/>}
         </div>
       </section>
@@ -488,7 +488,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
       setBudgetMessage(error instanceof Error ? error.message : "Couldn't remove that bill.");
     } finally { setSavingBill(false); }
   }
-  const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Plan what you expect to spend, then compare it with what you actually spend.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
+  const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"A fresh look at where your money stands.", Budgets:"Set your plan, then see how the month is pouring out.", Transactions:"Every little purchase, gathered in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Your money story, one month at a time." };
 
   async function saveBudget(category: CategoryItem, amountValue: string, ownerId: string | null = userId, savedPeriod: "monthly" | "biweekly" = budgetPeriod) {
     if (!ownerId || !category.id) return;
