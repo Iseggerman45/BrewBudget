@@ -56,6 +56,10 @@ export default function OnboardingWizard({ userId, onComplete }: Props) {
   }
 
   async function finish() {
+    if (selectedCategories.length === 0) {
+      setError("Choose at least one category so BrewBudget has a place to organize your spending.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
