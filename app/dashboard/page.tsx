@@ -20,6 +20,7 @@ type Period = "Monthly" | "Biweekly";
 type Tab = "Overview" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
 type Debt = { id: number; name: string; original: number; balance: number };
 type Transaction = { name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
+type CategoryItem = { id?: string; name: string; spent: number; budget: number; color: string; icon: string };
 
 const initialTransactions: Transaction[] = [];
 
@@ -65,6 +66,9 @@ export default function Dashboard() {
   const [newName, setNewName] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState("Groceries");
+  const [categoryList, setCategoryList] = useState<CategoryItem[]>([]);
+  const [expectedIncome, setExpectedIncome] = useState(0);
+  const [payFrequency, setPayFrequency] = useState("biweekly");
   const [toast, setToast] = useState("");
   const [debts, setDebts] = useState<Debt[]>([]);
   const [showDebtModal, setShowDebtModal] = useState(false);
@@ -74,7 +78,7 @@ export default function Dashboard() {
   const [celebrate, setCelebrate] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [entryFeedback, setEntryFeedback] = useState(false);
-  const [budgetSpent, setBudgetSpent] = useState<Record<string, number>>(() => Object.fromEntries(categories.map(category => [category.name, category.spent])));
+  const [budgetSpent, setBudgetSpent] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let active = true;
@@ -85,10 +89,25 @@ export default function Dashboard() {
       setCurrentUserId(user.id);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_completed")
+        .select("onboarding_completed, expected_income, pay_frequency")
         .eq("id", user.id)
         .maybeSingle();
-      if (active) setShowOnboarding(!profile?.onboarding_completed);
+      if (!active) return;
+      setShowOnboarding(!profile?.onboarding_completed);
+      setExpectedIncome(Number(profile?.expected_income ?? 0));
+      setPayFrequency(profile?.pay_frequency ?? "biweekly");
+      if (profile?.onboarding_completed) {
+        const [{ data: savedCategories }, { data: savedBudgets }] = await Promise.all([
+          supabase.from("categories").select("id,name,icon,color").eq("owner_id", user.id).eq("category_type", "expense"),
+          supabase.from("budgets").select("category_id,amount").eq("owner_id", user.id)
+        ]);
+        if (!active) return;
+        const budgetByCategory = new Map((savedBudgets ?? []).map(item => [item.category_id, Number(item.amount)]));
+        const loadedCategories = (savedCategories ?? []).map(item => ({ id: item.id, name: item.name, spent: 0, budget: budgetByCategory.get(item.id) ?? 0, color: item.color ?? "#A6D189", icon: item.icon ?? "receipt" }));
+        setCategoryList(loadedCategories);
+        setBudgetSpent(Object.fromEntries(loadedCategories.map(category => [category.name, 0])));
+        if (loadedCategories.length) setNewCategory(loadedCategories[0].name);
+      }
     }
     checkOnboarding();
     return () => { active = false; };
@@ -139,7 +158,7 @@ export default function Dashboard() {
     setEntryFeedback(true); window.setTimeout(() => setEntryFeedback(false), 850);
     let expenseFeedback = "Expense added to your activity";
     if (newCategory !== "Debt payment") {
-      const budget = categories.find(category => category.name === newCategory);
+      const budget = categoryList.find(category => category.name === newCategory);
       if (budget) {
         const nextSpent = (budgetSpent[newCategory] ?? budget.spent) + amount;
         setBudgetSpent(current => ({ ...current, [newCategory]: nextSpent }));
@@ -206,7 +225,7 @@ export default function Dashboard() {
 
             <div className="summary-grid">
               <div className="glass-card balance-card"><div className="card-top"><span className="card-label">AVAILABLE TO SPEND</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$0<span>.00</span></div><div className="balance-foot"><span className="muted-text">Add income and budgets to get started</span></div><div className="balance-glow"/></div>
-              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">INCOME THIS PERIOD</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">No income recorded yet</span></div></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">INCOME THIS PERIOD</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">{money(expectedIncome)}</div><div className="metric-foot"><span className="metric-caption">{expectedIncome > 0 ? "Expected " + (payFrequency === "monthly" ? "monthly" : "per payday") : "Add your income in setup"}</span></div></div>
               <div className="glass-card metric-card"><div className="card-top"><span className="card-label">SPENT THIS PERIOD</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">No expenses recorded yet</span></div></div>
             </div>
 
@@ -219,7 +238,7 @@ export default function Dashboard() {
 
               <section className="glass-card budget-card">
                 <div className="section-heading"><div><div className="card-label">SPENDING PLAN</div><h2>Budget categories</h2><p>A little awareness goes a long way.</p></div><button className="more-button" onClick={() => setTab("Budgets")}><Ellipsis size={20}/></button></div>
-                <div className="category-list">{categories.slice(0,4).map((c) => { const spent = budgetSpent[c.name] ?? c.spent; return <div className="category-item" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{ background: c.color }}/>{c.name}</div><div className="category-amount">{c.budget > 0 ? <>{money(spent)} <span>/ {money(c.budget)}</span></> : <span>No budget set</span>}</div></div><div className="progress-track"><div className="progress-fill" style={{ width: (c.budget > 0 ? Math.min(100,spent/c.budget*100) : 0)+"%", background: c.color }}/></div><div className="category-remaining">{c.budget > 0 ? (spent <= c.budget ? `${money(c.budget-spent)} left` : `${money(spent-c.budget)} over budget`) : "Set a budget to start tracking"}</div></div>; })}</div>
+                <div className="category-list">{categoryList.slice(0,4).map((c) => { const spent = budgetSpent[c.name] ?? c.spent; return <div className="category-item" key={c.name}><div className="category-top"><div className="category-name"><span className="category-dot" style={{ background: c.color }}/>{c.name}</div><div className="category-amount">{c.budget > 0 ? <>{money(spent)} <span>/ {money(c.budget)}</span></> : <span>No budget set</span>}</div></div><div className="progress-track"><div className="progress-fill" style={{ width: (c.budget > 0 ? Math.min(100,spent/c.budget*100) : 0)+"%", background: c.color }}/></div><div className="category-remaining">{c.budget > 0 ? (spent <= c.budget ? `${money(c.budget-spent)} left` : `${money(spent-c.budget)} over budget`) : "Set a budget to start tracking"}</div></div>; })}</div>
                 <button className="text-link" onClick={() => setTab("Budgets")}>View all categories <ChevronRight size={15}/></button>
               </section>
             </div>
@@ -232,11 +251,11 @@ export default function Dashboard() {
               <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Start with what matters most.</h2><p>Add your first income or expense, then create a budget that reflects how you want to use your money.</p><div className="insight-bottom"><span className="insight-spark">✳</span> A little progress adds up.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for a more mindful money routine. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
-          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent}/>}
+          </> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} categories={categoryList}/>}
         </div>
       </section>
 
-      {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categories.map(c => <option key={c.name}>{c.name}</option>)}<option>Debt payment</option></select></label>{newCategory === "Debt payment" && <label>Apply payment to<select value={paymentDebtId} onChange={e => setPaymentDebtId(e.target.value)} required><option value="">Choose a debt</option>{debts.filter(d => d.balance > 0).map(d => <option key={d.id} value={d.id}>{d.name} · {money(d.balance)} left</option>)}</select></label>}<button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
+      {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categoryList.map(c => <option key={c.name}>{c.name}</option>)}<option>Debt payment</option></select></label>{newCategory === "Debt payment" && <label>Apply payment to<select value={paymentDebtId} onChange={e => setPaymentDebtId(e.target.value)} required><option value="">Choose a debt</option>{debts.filter(d => d.balance > 0).map(d => <option key={d.id} value={d.id}>{d.name} · {money(d.balance)} left</option>)}</select></label>}<button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
       {showDebtModal && <div className="modal-backdrop" onClick={() => setShowDebtModal(false)}><form className="expense-modal" onSubmit={addDebt} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW DEBT</div><h2>Add a debt</h2></div><button type="button" className="icon-button" onClick={() => setShowDebtModal(false)}><X size={18}/></button></div><label>What is this debt?<input autoFocus value={debtName} onChange={e => setDebtName(e.target.value)} placeholder="e.g. Student loans" required/></label><label>Starting balance<input type="number" min="0.01" step="0.01" value={debtAmount} onChange={e => setDebtAmount(e.target.value)} placeholder="10000.00" required/></label><button className="primary-button modal-submit" type="submit"><Plus size={16}/> Add debt</button><p className="demo-note">Demo mode · Your debt data is stored only in this browser session.</p></form></div>}{celebrate && <div className="debt-celebration"><div className="confetti-burst">{Array.from({length:48},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%9)*.09}s`,transform:`rotate(${i*31}deg)`}}/>)}</div><div className="celebration-card"><div className="celebration-spark"><Sparkles size={32}/></div><div className="card-label">DEBT PAID IN FULL</div><h2>You did it!</h2><p>One less weight to carry. Take a moment and celebrate this milestone.</p><button className="primary-button" onClick={() => setCelebrate(false)}>That feels amazing <Check size={16}/></button></div></div>}{toast && <div className="toast"><span className="toast-check"><Check size={15}/></span>{toast}</div>}
       {showOnboarding && currentUserId && <OnboardingWizard userId={currentUserId} onComplete={() => setShowOnboarding(false)}/>}
     </main>
@@ -252,7 +271,7 @@ function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => voi
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> YOUR DEBT-FREE JOURNEY</div><div className="subpage-heading"><div><h1>Debt tracker</h1><p className="subtitle">Every payment moves the number down. Every little bit counts.</p></div><button className="primary-button" onClick={onAdd}><Plus size={17}/> Add debt</button></div><div className="debt-summary-grid"><section className="glass-card debt-total-card"><div className="card-label">TOTAL DEBT REMAINING</div><div className="debt-total-value">{money(total)}</div><p>{debts.length ? `${money(Math.max(0, original-total))} paid off so far` : "Add your first debt to get started."}</p></section><section className="glass-card debt-progress-card"><div className="card-label">YOUR PROGRESS</div><div className="debt-progress-number">{original ? Math.round((original-total)/original*100) : 0}%</div><div className="progress-track"><div className="progress-fill" style={{width:(original ? (original-total)/original*100 : 0)+"%",background:"var(--purple)"}}/></div><p>of your starting debt cleared</p></section></div>{debts.length ? <div className="debt-list">{debts.map(d => <section className="glass-card debt-item" key={d.id}><div className="debt-item-top"><div className="debt-icon"><CreditCard size={19}/></div><div className="debt-title"><strong>{d.name}</strong><span>{d.balance === 0 ? "Paid in full 🎉" : "Keep chipping away"}</span></div><div className="debt-balance">{money(d.balance)}<small>remaining</small></div></div><div className="progress-track"><div className="progress-fill" style={{width:((d.original-d.balance)/d.original*100)+"%",background:"var(--purple)"}}/></div><div className="debt-item-foot"><span>{money(d.original-d.balance)} paid of {money(d.original)}</span><strong>{Math.round((d.original-d.balance)/d.original*100)}%</strong></div></section>)}</div> : <section className="glass-card debt-empty"><div className="debt-empty-icon"><CreditCard size={27}/></div><h2>Start with one debt.</h2><p>Add a student loan, car payment, credit card, or anything else you’re working to pay off. BrewBudget will keep the remaining balance moving down as you log payments.</p><button className="primary-button" onClick={onAdd}><Plus size={16}/> Add your first debt</button></section>}{debts.some(d=>d.balance>0) && <div className="debt-payment-row"><div><strong>Made a debt payment?</strong><p>Log it as an expense and apply it to the right balance.</p></div><button className="primary-button" onClick={onPayment}><Plus size={16}/> Log a payment</button></div>}</div>;
 }
 
-function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number> }) {
+function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, categories }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; categories: CategoryItem[] }) {
   const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"Your financial picture, at a glance.", Budgets:"Give every category a thoughtful spending limit.", Transactions:"Every little purchase, all in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Patterns, progress, and a clearer picture." };
   return <div className="subpage"><div className="eyebrow"><span className="eyebrow-line"/> BREWBUDGET WORKSPACE</div><div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>{(tab === "Transactions" || tab === "Budgets") && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button>}</div>
   {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
