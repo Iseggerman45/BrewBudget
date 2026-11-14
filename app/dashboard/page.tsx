@@ -10,7 +10,7 @@ import {
   ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
   Plus, Search, Settings2, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, Volume2, VolumeX,
   Utensils, CarFront, Zap, Heart, SlidersHorizontal, ArrowLeftRight, X, Check, Droplet, Fuel, Wifi, Ticket, UserRound, Gift,
-  Menu, Landmark, PiggyBank, ReceiptText, Trash2
+  Menu, Landmark, PiggyBank, ReceiptText, Trash2, Building2, Lightbulb, Flame, Recycle, Smartphone, ShoppingCart, Store, Pizza, Plane, PawPrint, Baby, GraduationCap, BookOpen, Shirt, Dumbbell, Gamepad2, Music, Film, Tv, BriefcaseBusiness, Wrench, Umbrella, Bike, Bus, TrainFront, ParkingCircle, Scissors, PartyPopper, Sprout, Leaf, Package, Shield, WalletCards, Banknote, type LucideIcon
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -34,7 +34,29 @@ const nav: { name: Tab; icon: typeof Home }[] = [
   { name: "Goals", icon: Target }, { name: "Reports", icon: TrendingUp },
 ];
 
+const categorySymbolOptions: { name: string; label: string; icon: LucideIcon }[] = [
+  {name:"receipt",label:"Receipt",icon:ReceiptText},{name:"home",label:"Home",icon:Home},{name:"building",label:"Building",icon:Building2},
+  {name:"zap",label:"Electric",icon:Zap},{name:"lightbulb",label:"Light",icon:Lightbulb},{name:"flame",label:"Heat",icon:Flame},
+  {name:"gas",label:"Fuel",icon:Fuel},{name:"water",label:"Water",icon:Droplet},{name:"recycle",label:"Recycle",icon:Recycle},
+  {name:"wifi",label:"Wi-Fi",icon:Wifi},{name:"phone",label:"Phone",icon:Smartphone},{name:"shopping",label:"Shopping",icon:ShoppingBag},
+  {name:"cart",label:"Groceries",icon:ShoppingCart},{name:"store",label:"Store",icon:Store},{name:"coffee",label:"Coffee",icon:Coffee},
+  {name:"food",label:"Dining",icon:Utensils},{name:"pizza",label:"Takeout",icon:Pizza},{name:"car",label:"Car",icon:CarFront},
+  {name:"bike",label:"Bike",icon:Bike},{name:"bus",label:"Bus",icon:Bus},{name:"train",label:"Train",icon:TrainFront},
+  {name:"parking",label:"Parking",icon:ParkingCircle},{name:"plane",label:"Travel",icon:Plane},{name:"paw",label:"Pets",icon:PawPrint},
+  {name:"baby",label:"Childcare",icon:Baby},{name:"school",label:"Education",icon:GraduationCap},{name:"book",label:"Books",icon:BookOpen},
+  {name:"shirt",label:"Clothing",icon:Shirt},{name:"dumbbell",label:"Fitness",icon:Dumbbell},{name:"game",label:"Games",icon:Gamepad2},
+  {name:"music",label:"Music",icon:Music},{name:"film",label:"Movies",icon:Film},{name:"tv",label:"Streaming",icon:Tv},
+  {name:"work",label:"Work",icon:BriefcaseBusiness},{name:"tools",label:"Repairs",icon:Wrench},{name:"shield",label:"Insurance",icon:Shield},
+  {name:"umbrella",label:"Rainy day",icon:Umbrella},{name:"scissors",label:"Personal care",icon:Scissors},{name:"gift",label:"Gifts",icon:Gift},
+  {name:"party",label:"Celebrations",icon:PartyPopper},{name:"sprout",label:"Growth",icon:Sprout},{name:"leaf",label:"Nature",icon:Leaf},
+  {name:"package",label:"Packages",icon:Package},{name:"ticket",label:"Events",icon:Ticket},{name:"heart",label:"Health",icon:Heart},
+  {name:"piggy",label:"Savings",icon:PiggyBank},{name:"credit-card",label:"Payments",icon:CreditCard},{name:"wallet",label:"Wallet",icon:WalletCards},
+  {name:"bank",label:"Bank",icon:Landmark},{name:"cash",label:"Cash",icon:Banknote},{name:"user",label:"Personal",icon:UserRound}
+];
+
 function CategoryIcon({ name }: { name: string }) {
+  const option = categorySymbolOptions.find(item => item.name === name);
+  if (option) { const Icon = option.icon; return <Icon size={17} strokeWidth={1.8}/>; }
   const common = { size: 17, strokeWidth: 1.8 };
   if (name === "home") return <Home {...common}/>;
   if (name === "shopping" || name === "groceries") return <ShoppingBag {...common}/>;
@@ -320,6 +342,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
   const [categoryName, setCategoryName] = useState("");
   const [categoryBudget, setCategoryBudget] = useState("");
   const [categoryColor, setCategoryColor] = useState("#CA9EE6");
+  const [categoryIcon, setCategoryIcon] = useState("receipt");
   const [budgetPeriod, setBudgetPeriod] = useState<"monthly" | "biweekly">("biweekly");
   const [adaptiveBudget, setAdaptiveBudget] = useState(true);
   const [savingCategory, setSavingCategory] = useState(false);
@@ -476,13 +499,13 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
       const supabase = createClient();
       const { data, error } = await supabase.from("categories").insert({
         owner_id: userId, name: categoryName.trim(), category_type: "expense",
-        icon: "receipt", color: categoryColor
+        icon: categoryIcon, color: categoryColor
       }).select("id,name,icon,color").single();
       if (error) throw error;
       const created: CategoryItem = { id: data.id, name: data.name, icon: data.icon ?? "receipt", color: data.color ?? categoryColor, spent: 0, budget: 0 };
       onCategoryChange(created);
       if (categoryBudget.trim()) await saveBudget(created, categoryBudget);
-      setCategoryName(""); setCategoryBudget(""); setShowCategoryForm(false);
+      setCategoryName(""); setCategoryBudget(""); setCategoryIcon("receipt"); setShowCategoryForm(false);
       setBudgetMessage("Category added to your budget.");
     } catch (error) {
       setBudgetMessage(error instanceof Error ? error.message : "Couldn't create that category.");
@@ -498,7 +521,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     tab === "Budgets" ? <>
       {showCategoryForm && <form className="glass-card add-category-form" onSubmit={createCategory}>
         <div className="add-category-title"><div><div className="card-label">MAKE IT YOURS</div><h2>New budget category</h2></div><button type="button" className="more-button" onClick={() => setShowCategoryForm(false)} aria-label="Close"><X size={18}/></button></div>
-        <div className="add-category-fields"><label>Category name<input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} placeholder="e.g. Pet care" required maxLength={40}/></label><label>Expected budget ({budgetPeriod === "monthly" ? "per month" : "per paycheck"})<input type="number" min="0" step="0.01" value={categoryBudget} onChange={event => setCategoryBudget(event.target.value)} placeholder="Optional"/></label><label>Color<select value={categoryColor} onChange={event => setCategoryColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label><button className="primary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Add category"}</button></div>
+        <div className="add-category-fields"><label>Category name<input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} placeholder="e.g. Pet care" required maxLength={40}/></label><label>Expected budget ({budgetPeriod === "monthly" ? "per month" : "per paycheck"})<input type="number" min="0" step="0.01" value={categoryBudget} onChange={event => setCategoryBudget(event.target.value)} placeholder="Optional"/></label><div className="category-symbol-picker"><div className="category-symbol-picker-heading"><span>Choose a symbol</span><small>{categorySymbolOptions.length} styles</small></div><div className="category-symbol-grid">{categorySymbolOptions.map(option => { const Icon = option.icon; return <button type="button" key={option.name} className={categoryIcon === option.name ? "selected" : ""} onClick={() => setCategoryIcon(option.name)} aria-label={option.label} title={option.label}><Icon size={19} strokeWidth={1.8}/><span>{option.label}</span></button>; })}</div></div><label>Color<select value={categoryColor} onChange={event => setCategoryColor(event.target.value)}><option value="#CA9EE6">Lavender</option><option value="#8CAAEE">Blue</option><option value="#A6D189">Mint</option><option value="#E5A86A">Amber</option><option value="#E78284">Rose</option><option value="#99D1DB">Teal</option></select></label><button className="primary-button" type="submit" disabled={savingCategory}>{savingCategory ? "Saving…" : "Add category"}</button></div>
       </form>}
       <section className="glass-card bills-panel">
         <div className="bills-panel-heading">
