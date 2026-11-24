@@ -460,3 +460,12 @@
 .income-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;padding:22px;margin-bottom:18px}.income-form .bill-form-heading,.income-form>button{grid-column:1/-1}.income-form label{display:grid;gap:7px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.04em}.income-form input,.income-form select{width:100%;min-width:0;border:1px solid var(--border);border-radius:10px;background:rgba(18,23,30,.7);color:var(--text);padding:12px;font-size:13px;outline:none}.income-form input:focus,.income-form select:focus{border-color:var(--purple)}
 .income-list-panel{padding:23px}.income-list{display:grid}.income-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto auto auto;align-items:center;gap:13px;padding:15px 0;border-top:1px solid var(--border)}.income-row-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#CA9EE6;background:rgba(202,158,230,.13)}.income-row-name,.income-row-amount{display:grid;gap:5px}.income-row-name strong,.income-row-amount strong{font-size:13px}.income-row-name span,.income-row-amount span{font-size:11px;color:var(--muted)}.income-row-amount{text-align:right}.income-inactive{opacity:.48}
 @media(max-width:640px){.income-form{grid-template-columns:1fr}.income-form .bill-form-heading,.income-form>button{grid-column:auto}.income-summary{padding:20px}.income-row{grid-template-columns:34px minmax(0,1fr) auto;gap:9px}.income-row-icon{width:32px;height:32px}.income-row-amount{grid-column:2;text-align:left}.income-row>button{grid-row:2}.income-row>button:first-of-type{grid-column:1}.income-row>button:nth-of-type(2){grid-column:2}.income-row>button:nth-of-type(3){grid-column:3}}
+
+
+.annual-income-modal{width:min(480px,calc(100vw - 36px));padding:32px;display:grid;gap:14px;text-align:left;border:1px solid rgba(202,158,230,.24);box-shadow:0 24px 80px rgba(0,0,0,.42)}
+.annual-income-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;position:relative;color:#CA9EE6;background:rgba(202,158,230,.14);margin-bottom:3px}
+.annual-income-icon svg:last-child{position:absolute;right:-5px;top:-5px;color:#8CAAEE}
+.annual-income-modal h2{font:800 25px/1.2 Manrope,sans-serif;letter-spacing:-.7px;margin:0}
+.annual-income-modal>p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}
+.annual-income-actions{display:grid;gap:9px;margin-top:7px}.annual-income-actions button{width:100%;justify-content:center}
+@media(max-width:520px){.annual-income-modal{padding:24px}}
