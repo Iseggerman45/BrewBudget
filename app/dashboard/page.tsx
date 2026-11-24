@@ -17,7 +17,7 @@ import {
 } from "recharts";
 
 type Period = "Monthly" | "Biweekly";
-type Tab = "Overview" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
+type Tab = "Overview" | "Income" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
 type Debt = { id: number; name: string; original: number; balance: number };
 type Transaction = { name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
 type CategoryItem = { id?: string; name: string; spent: number; budget: number; budgetPeriod: "monthly" | "biweekly"; color: string; icon: string };
@@ -29,7 +29,7 @@ const biweeklyChart: { day: string; income: number; spending: number }[] = [];
 
 const money = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 const nav: { name: Tab; icon: typeof Home }[] = [
-  { name: "Overview", icon: LayoutDashboard }, { name: "Budgets", icon: Wallet },
+  { name: "Overview", icon: LayoutDashboard }, { name: "Income", icon: Banknote }, { name: "Budgets", icon: Wallet },
   { name: "Transactions", icon: ArrowLeftRight }, { name: "Debt", icon: CreditCard }, { name: "Accounts", icon: Landmark },
   { name: "Goals", icon: Target }, { name: "Reports", icon: TrendingUp },
 ];
@@ -329,6 +329,85 @@ export default function Dashboard() {
   );
 }
 
+
+type IncomeSource = { id: string; name: string; source_type: string; amount: number; frequency: string; next_pay_date: string | null; is_active: boolean; notes: string | null };
+function IncomePage({ userId }: { userId: string | null }) {
+  const [items, setItems] = useState<IncomeSource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [sourceType, setSourceType] = useState("job");
+  const [amount, setAmount] = useState("");
+  const [frequency, setFrequency] = useState("biweekly");
+  const [nextPayDate, setNextPayDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+    let active = true;
+    createClient().from("income_sources").select("*").eq("owner_id", userId).order("created_at", {ascending:true})
+      .then(({data,error}) => { if (!active) return; if (error) setMessage("Couldn't load income: " + error.message); else setItems((data ?? []) as IncomeSource[]); setLoading(false); });
+    return () => { active = false; };
+  }, [userId]);
+  const monthly = (item: IncomeSource) => {
+    const n = Number(item.amount);
+    return item.frequency === "weekly" ? n * 52 / 12 : item.frequency === "biweekly" ? n * 26 / 12 : item.frequency === "twice_monthly" ? n * 2 : item.frequency === "annually" ? n / 12 : item.frequency === "irregular" ? 0 : n;
+  };
+  const total = items.filter(item => item.is_active).reduce((sum,item) => sum + monthly(item),0);
+  function reset() { setShowForm(false); setEditingId(null); setName(""); setSourceType("job"); setAmount(""); setFrequency("biweekly"); setNextPayDate(""); setNotes(""); }
+  function edit(item: IncomeSource) { setEditingId(item.id); setName(item.name); setSourceType(item.source_type); setAmount(String(item.amount)); setFrequency(item.frequency); setNextPayDate(item.next_pay_date ?? ""); setNotes(item.notes ?? ""); setShowForm(true); }
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!userId || !name.trim() || !(Number(amount) > 0)) return;
+    setSaving(true); setMessage("");
+    const payload = { owner_id:userId, name:name.trim(), source_type:sourceType, amount:Number(amount), frequency, next_pay_date:nextPayDate || null, notes:notes.trim() || null, is_active:true };
+    const client = createClient();
+    const result = editingId ? await client.from("income_sources").update(payload).eq("id",editingId).eq("owner_id",userId).select("*").single() : await client.from("income_sources").insert(payload).select("*").single();
+    if (result.error) setMessage("Couldn't save income: " + result.error.message);
+    else { setItems(current => editingId ? current.map(item => item.id === editingId ? result.data as IncomeSource : item) : [...current,result.data as IncomeSource]); reset(); setMessage("Income source saved."); }
+    setSaving(false);
+  }
+  async function remove(item: IncomeSource) {
+    if (!userId || !window.confirm("Remove " + item.name + " from your income sources?")) return;
+    const {error} = await createClient().from("income_sources").delete().eq("id",item.id).eq("owner_id",userId);
+    if (error) setMessage("Couldn't remove income: " + error.message); else setItems(current => current.filter(row => row.id !== item.id));
+  }
+  async function toggle(item: IncomeSource) {
+    if (!userId) return;
+    const {error} = await createClient().from("income_sources").update({is_active:!item.is_active}).eq("id",item.id).eq("owner_id",userId);
+    if (error) setMessage("Couldn't update income: " + error.message); else setItems(current => current.map(row => row.id === item.id ? {...row,is_active:!row.is_active} : row));
+  }
+  const labels: Record<string,string> = {job:"Job",side_job:"Side job",freelance:"Freelance",business:"Business",benefits:"Benefits",investment:"Investment",other:"Other"};
+  const frequencies: Record<string,string> = {weekly:"Weekly",biweekly:"Every 2 weeks",twice_monthly:"Twice a month",monthly:"Monthly",annually:"Annually",irregular:"Irregular"};
+  return <div className="subpage">
+    <div className="eyebrow"><span className="eyebrow-line"/> YOUR INCOME SOURCES</div>
+    <div className="subpage-heading"><div><h1>Income</h1><p className="subtitle">Bring every stream of income together, from your main job to the occasional side gig.</p></div><button className="primary-button" onClick={() => { reset(); setShowForm(true); }}><Plus size={17}/> Add income</button></div>
+    <section className="income-summary glass-card"><div><div className="card-label">ESTIMATED MONTHLY INCOME</div><strong>{money(total)}</strong><span>Based on active recurring income sources</span></div><div className="income-summary-count"><strong>{items.filter(item=>item.is_active).length}</strong><span>Active sources</span></div></section>
+    {showForm && <form className="glass-card income-form" onSubmit={save}>
+      <div className="bill-form-heading"><strong>{editingId ? "Edit income source" : "Add an income source"}</strong><button type="button" className="more-button" onClick={reset} aria-label="Close form"><X size={17}/></button></div>
+      <label>Income name<input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Primary job at Acme" required maxLength={70}/></label>
+      <label>Type<select value={sourceType} onChange={e=>setSourceType(e.target.value)}><option value="job">Job</option><option value="side_job">Side job</option><option value="freelance">Freelance</option><option value="business">Business</option><option value="benefits">Benefits</option><option value="investment">Investment</option><option value="other">Other</option></select></label>
+      <label>Amount ($)<input type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="1,500.00" required/></label>
+      <label>Pay frequency<select value={frequency} onChange={e=>setFrequency(e.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="twice_monthly">Twice a month</option><option value="monthly">Monthly</option><option value="annually">Annually</option><option value="irregular">Irregular / one-off</option></select></label>
+      <label>Next pay date (optional)<input type="date" value={nextPayDate} onChange={e=>setNextPayDate(e.target.value)}/></label>
+      <label>Notes (optional)<input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Anything useful to remember"/></label>
+      <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : editingId ? "Save changes" : "Add income source"}</button>
+    </form>}
+    {message && <p className="budget-feedback" role="status">{message}</p>}
+    <section className="glass-card income-list-panel"><div className="section-heading"><div><div className="card-label">YOUR MONEY COMING IN</div><h2>Income sources</h2><p>Keep each source separate so your full income picture stays clear.</p></div></div>
+      {loading ? <div className="empty-state">Loading your income…</div> : items.length === 0 ? <div className="bills-empty"><Banknote size={24}/><strong>No income sources yet</strong><span>Add your job, side work, or other income to build your monthly picture.</span></div> :
+      <div className="income-list">{items.map(item=><div className={"income-row "+(!item.is_active?"income-inactive":"")} key={item.id}>
+        <div className="income-row-icon"><Banknote size={18}/></div><div className="income-row-name"><strong>{item.name}</strong><span>{labels[item.source_type] ?? "Other"} · {frequencies[item.frequency] ?? item.frequency}{item.next_pay_date ? " · Next pay " + new Date(item.next_pay_date+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}) : ""}</span></div>
+        <div className="income-row-amount"><strong>{money(Number(item.amount))}</strong><span>{frequencies[item.frequency] ?? item.frequency}</span></div>
+        <button type="button" className="bill-edit" onClick={()=>toggle(item)} title={item.is_active?"Pause income":"Activate income"} aria-label={item.is_active?"Pause "+item.name:"Activate "+item.name}>{item.is_active ? <VolumeX size={15}/> : <Check size={15}/>}</button>
+        <button type="button" className="bill-edit" onClick={()=>edit(item)} aria-label={"Edit "+item.name}><Pencil size={14}/></button>
+        <button type="button" className="bill-remove" onClick={()=>void remove(item)} aria-label={"Remove "+item.name}><Trash2 size={15}/></button>
+      </div>)}</div>}
+    </section>
+  </div>;
+}
+
 function TransactionList({ transactions }: { transactions: Transaction[] }) {
   return <div className="transaction-list">{transactions.map((t,i) => <div className="transaction-row" key={t.name+i}><div className={`transaction-icon ${t.color}`}><CategoryIcon name={t.icon}/></div><div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div><div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div></div>)}</div>;
 }
@@ -527,7 +606,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
       setBudgetMessage(error instanceof Error ? error.message : "Couldn't remove that bill.");
     } finally { setSavingBill(false); }
   }
-  const descriptions: Record<Tab,string> = { Debt:"A clearer path to becoming debt-free.", Overview:"A fresh look at where your money stands.", Budgets:"Set your plan, then see how the month is pouring out.", Transactions:"Every little purchase, gathered in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Your money story, one month at a time." };
+  const descriptions: Record<Tab,string> = { Income:"Every paycheck, side gig, and other source of money in one place.", Debt:"A clearer path to becoming debt-free.", Overview:"A fresh look at where your money stands.", Budgets:"Set your plan, then see how the month is pouring out.", Transactions:"Every little purchase, gathered in one place.", Accounts:"Your connected financial world.", Goals:"Small steps toward the things that matter.", Reports:"Your money story, one month at a time." };
 
   async function saveBudget(category: CategoryItem, amountValue: string, ownerId: string | null = userId, savedPeriod: "monthly" | "biweekly" = budgetPeriod) {
     if (!ownerId || !category.id) return;
