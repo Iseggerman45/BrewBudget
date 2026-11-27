@@ -68,15 +68,6 @@
         }
       ]
     },
-    "ignoredProductionDependencies": [
-      "@supabase/ssr",
-      "@supabase/supabase-js",
-      "lucide-react",
-      "next",
-      "react",
-      "react-dom",
-      "recharts",
-      "react-plaid-link"
-    ]
+    "onNodeModuleFile": "./electron/skip-node-modules.cjs"
   }
 }
