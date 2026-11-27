@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Build universal Mac DMG
         run: npm run dist:mac
       - name: Upload DMG installer
