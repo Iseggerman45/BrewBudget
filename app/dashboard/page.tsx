@@ -54,6 +54,34 @@ const categorySymbolOptions: { name: string; label: string; icon: LucideIcon }[]
   {name:"bank",label:"Bank",icon:Landmark},{name:"cash",label:"Cash",icon:Banknote},{name:"user",label:"Personal",icon:UserRound}
 ];
 
+function categoryVisual(name: string): { icon: string; color: string } | null {
+  const value = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const rules: [RegExp, string, string][] = [
+    [/^(mortgage|rent|housing|home|property|hoa)/, "home", "#8CAAEE"],
+    [/^(grocer|supermarket|food at home)/, "shopping", "#A6D189"],
+    [/^(shopping|clothing|apparel|retail)/, "store", "#CA9EE6"],
+    [/^(restaurant|dining|takeout|coffee|fast food)/, "food", "#E78284"],
+    [/^(gas|fuel|transport|car|auto|vehicle|parking|rideshare)/, "car", "#E5A86A"],
+    [/^(electric|power|utilities|utility)/, "zap", "#E5A86A"],
+    [/^(natural gas|heating|heat)/, "flame", "#E78284"],
+    [/^(water|sewer)/, "water", "#8CAAEE"],
+    [/^(trash|recycling|waste)/, "recycle", "#99D1DB"],
+    [/^(internet|wifi|phone|mobile|cell)/, "wifi", "#99D1DB"],
+    [/^(insurance)/, "shield", "#BABB F1".replace(" ", "")],
+    [/^(health|medical|doctor|pharmacy|dental)/, "heart", "#E78284"],
+    [/^(personal care|haircut|beauty)/, "scissors", "#F4B8E4"],
+    [/^(entertainment|movies|streaming|games|music|events)/, "ticket", "#CA9EE6"],
+    [/^(travel|vacation|airfare|hotel)/, "plane", "#8CAAEE"],
+    [/^(pet|pets|veterinary)/, "paw", "#E5A86A"],
+    [/^(childcare|kids|school|education|tuition|books)/, "school", "#99D1DB"],
+    [/^(giving|donation|charity)/, "gift", "#F2D5CF"],
+    [/^(savings|emergency fund)/, "piggy", "#A6D189"],
+    [/^(debt|loan|credit card payment)/, "credit-card", "#E5A86A"],
+  ];
+  const match = rules.find(([pattern]) => pattern.test(value));
+  return match ? { icon: match[1], color: match[2] } : null;
+}
+
 function CategoryIcon({ name }: { name: string }) {
   const option = categorySymbolOptions.find(item => item.name === name);
   if (option) { const Icon = option.icon; return <Icon size={17} strokeWidth={1.8}/>; }
@@ -160,10 +188,10 @@ export default function Dashboard() {
         if (!active) return;
         if (!savedCategories?.length) {
           const defaults = [
-            ["Mortgage / rent","home","#A6D189"],["Electricity","electric","#E5A86A"],["Natural gas","gas","#E78284"],
+            ["Mortgage / rent","home","#8CAAEE"],["Electricity","electric","#E5A86A"],["Natural gas","gas","#E78284"],
             ["Water & sewer","water","#8CAAEE"],["Trash","trash","#99D1DB"],["Internet","wifi","#CA9EE6"],
-            ["Groceries","groceries","#A6D189"],["Gas & fuel","fuel","#E5A86A"],["Restaurants","coffee","#CA9EE6"],
-            ["Shopping","shopping","#F4B8E4"],["Entertainment","ticket","#BABB F1".replace(" ","")],["Insurance","shield","#E5A86A"],
+            ["Groceries","shopping","#A6D189"],["Gas & fuel","fuel","#E5A86A"],["Restaurants","food","#E78284"],
+            ["Shopping","store","#CA9EE6"],["Entertainment","ticket","#BABB F1".replace(" ","")],["Insurance","shield","#E5A86A"],
             ["Phone","wifi","#99D1DB"],["Health & medical","heart","#EA999C"],["Personal care","user","#C6D0F5"],
             ["Giving","gift","#F2D5CF"],["Savings","piggy","#A6D189"],["Debt payments","credit-card","#CA9EE6"]
           ];
@@ -175,8 +203,15 @@ export default function Dashboard() {
         const budgetByCategory = new Map((savedBudgets ?? []).map(item => [item.category_id, { amount: Number(item.amount), period: item.period_type === "monthly" ? "monthly" as const : "biweekly" as const }]));
         const loadedCategories = (savedCategories ?? []).map(item => {
           const savedBudget = budgetByCategory.get(item.id);
-          return { id: item.id, name: item.name, spent: 0, budget: savedBudget?.amount ?? 0, budgetPeriod: savedBudget?.period ?? "biweekly" as const, color: item.color ?? "#A6D189", icon: item.icon ?? "receipt" };
+          const visual = categoryVisual(item.name);
+          const color = visual?.color ?? item.color ?? "#A6D189";
+          const icon = visual?.icon ?? item.icon ?? "receipt";
+          return { id: item.id, name: item.name, spent: 0, budget: savedBudget?.amount ?? 0, budgetPeriod: savedBudget?.period ?? "biweekly" as const, color, icon };
         });
+        await Promise.all(loadedCategories.filter(category => {
+          const saved = (savedCategories ?? []).find(item => item.id === category.id);
+          return saved && (saved.icon !== category.icon || saved.color !== category.color);
+        }).map(category => supabase.from("categories").update({ icon: category.icon, color: category.color }).eq("id", category.id).eq("owner_id", user.id)));
         const finalCategories = loadedCategories;
         setCategoryList(finalCategories);
         if (finalCategories.length) setNewCategory(finalCategories[0].name);
