@@ -469,3 +469,29 @@
 .annual-income-modal>p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}
 .annual-income-actions{display:grid;gap:9px;margin-top:7px}.annual-income-actions button{width:100%;justify-content:center}
 @media(max-width:520px){.annual-income-modal{padding:24px}}
+
+
+/* Scheduled budget cycle workspace */
+.budget-cycle-card { padding: 20px 22px; margin: 0 0 22px; }
+.budget-cycle-main { display:flex; align-items:center; justify-content:space-between; gap:18px; }
+.budget-cycle-copy h2 { display:flex; align-items:center; gap:9px; margin:7px 0 5px; font-size:18px; }
+.budget-cycle-copy h2 svg { color:var(--accent, #CA9EE6); }
+.budget-cycle-copy p { margin:0; color:var(--text-secondary, #aab2bf); font-size:13px; }
+.budget-cycle-copy p strong { color:var(--text-primary, #f2f0e9); font-weight:600; }
+.budget-cycle-copy small { display:block; margin-top:7px; color:var(--text-muted, #8993a2); font-size:11px; }
+.budget-cycle-actions { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.budget-cycle-actions .primary-button, .budget-cycle-actions .secondary-button { white-space:nowrap; }
+.budget-cycle-form { display:grid; grid-template-columns:1fr 1fr auto; align-items:end; gap:12px; padding-top:17px; margin-top:17px; border-top:1px solid var(--border, #ffffff14); }
+.budget-cycle-form label { display:grid; gap:7px; color:var(--text-secondary, #aab2bf); font-size:11px; }
+.budget-cycle-form input, .budget-cycle-form select { width:100%; min-height:40px; padding:0 11px; border:1px solid var(--border, #ffffff20); border-radius:10px; background:var(--input-bg, #171e28); color:var(--text-primary, #f2f0e9); font:inherit; }
+.budget-cycle-history { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; padding-top:14px; margin-top:14px; border-top:1px solid var(--border, #ffffff14); }
+.budget-cycle-history > span { color:var(--text-muted, #8993a2); font-size:9px; font-weight:700; letter-spacing:.09em; padding-top:2px; }
+.budget-cycle-history > div { display:grid; gap:3px; font-size:11px; color:var(--text-secondary, #aab2bf); }
+.budget-cycle-history small { color:var(--text-muted, #8993a2); font-size:10px; }
+.budget-cycle-message { margin:12px 0 0; color:var(--text-secondary, #aab2bf); font-size:11px; }
+@media (max-width: 700px) {
+  .budget-cycle-main { align-items:flex-start; flex-direction:column; }
+  .budget-cycle-actions { width:100%; }
+  .budget-cycle-actions button { flex:1; justify-content:center; }
+  .budget-cycle-form { grid-template-columns:1fr; }
+}
