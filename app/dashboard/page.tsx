@@ -106,6 +106,8 @@ export default function Dashboard() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [entryFeedback, setEntryFeedback] = useState(false);
   const [budgetSpent, setBudgetSpent] = useState<Record<string, number>>({});
+  const [creditCardDebt, setCreditCardDebt] = useState(0);
+  const [creditCardCount, setCreditCardCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +116,30 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!active || !user) return;
       setCurrentUserId(user.id);
+      const [transactionResult, accountResponse] = await Promise.all([
+        supabase.from("transactions").select("description,merchant,amount,transaction_type,transaction_date,categories(name,icon,color)").eq("owner_id", user.id).neq("transaction_type", "transfer").order("transaction_date", { ascending: false }).limit(100),
+        fetch("/api/accounts", { cache: "no-store" })
+      ]);
+      if (active && transactionResult.data) {
+        const imported = transactionResult.data.map((row: any) => {
+          const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
+          const isIncome = row.transaction_type === "income";
+          return { name: row.merchant || row.description || "Transaction", category: category?.name || (isIncome ? "Income" : "Uncategorized"), date: row.transaction_date ? new Date(row.transaction_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "", amount: isIncome ? Number(row.amount) : -Number(row.amount), icon: category?.icon || (isIncome ? "income" : "receipt"), color: category?.color || "purple", type: isIncome ? "income" : "expense" } as Transaction;
+        });
+        setTransactions(imported);
+        const spendTotals: Record<string, number> = {};
+        for (const row of transactionResult.data as any[]) {
+          const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
+          if (row.transaction_type === "expense" && category?.name) spendTotals[category.name] = (spendTotals[category.name] ?? 0) + Number(row.amount);
+        }
+        setBudgetSpent(spendTotals);
+      }
+      if (active && accountResponse.ok) {
+        const accountData = await accountResponse.json();
+        const cards = (accountData.accounts ?? []).filter((account: any) => account.account_type === "credit_card");
+        setCreditCardCount(cards.length);
+        setCreditCardDebt(cards.reduce((sum: number, account: any) => sum + Math.max(0, Number(account.current_balance ?? 0)), 0));
+      }
       const { data: profile } = await supabase
         .from("profiles")
         .select("onboarding_completed, expected_income, pay_frequency, next_payday, income_reviewed_year")
@@ -308,7 +334,8 @@ export default function Dashboard() {
             <div className="summary-grid">
               <div className="glass-card balance-card"><div className="card-top"><span className="card-label">READY FOR THE DAY</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$0<span>.00</span></div><div className="balance-foot"><span className="muted-text">A little setup goes a long way</span></div><div className="balance-glow"/></div>
               <div className="glass-card metric-card"><div className="card-top"><span className="card-label">FRESHLY BREWED INCOME</span><span className="card-icon blue"><ArrowDownLeft size={17}/></span></div><div className="metric-value">{money(expectedIncome)}</div><div className="metric-foot"><span className="metric-caption">{expectedIncome > 0 ? "Expected " + (payFrequency === "monthly" ? "monthly" : "per payday") : "Add your income in setup"}</span></div></div>
-              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">OUT THE DOOR</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">Nothing spent just yet</span></div></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">OUT THE DOOR</span><span className="card-icon amber"><ArrowUpRight size={17}/></span></div><div className="metric-value">$0<span>.00</span></div><div className="metric-foot"><span className="metric-caption">Spending this period</span></div></div>
+              <div className="glass-card metric-card"><div className="card-top"><span className="card-label">CREDIT CARD BALANCES</span><span className="card-icon blue"><CreditCard size={17}/></span></div><div className="metric-value">{money(creditCardDebt)}</div><div className="metric-foot"><span className="metric-caption">{creditCardCount ? `${creditCardCount} connected card${creditCardCount === 1 ? "" : "s"} · Balance owed` : "Connect a card to track what you owe"}</span></div></div>
             </div>
 
             <div className="dashboard-grid">
