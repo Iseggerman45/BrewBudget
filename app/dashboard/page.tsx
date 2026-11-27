@@ -303,6 +303,7 @@ export default function Dashboard() {
             </div>
 
             <div className="period-row"><div className="period-control"><button className={period === "Monthly" ? "selected" : ""} onClick={() => setPeriod("Monthly")}>Monthly</button><button className={period === "Biweekly" ? "selected" : ""} onClick={() => setPeriod("Biweekly")}>Biweekly</button></div><button className="period-date">Nov 1 – Nov 14 <ChevronDown size={14}/></button><span className="period-note"><span className="live-dot"/> {period === "Biweekly" ? "Pay period · 4 days left" : "Monthly overview"}</span></div>
+            <BudgetCycleCard userId={currentUserId} payFrequency={payFrequency} nextPayday={nextPayday} onScheduleUpdated={(frequency, date) => { setPayFrequency(frequency); setNextPayday(date); }} />
 
             <div className="summary-grid">
               <div className="glass-card balance-card"><div className="card-top"><span className="card-label">READY FOR THE DAY</span><span className="card-icon green"><Wallet size={17}/></span></div><div className="balance-value">$0<span>.00</span></div><div className="balance-foot"><span className="muted-text">A little setup goes a long way</span></div><div className="balance-glow"/></div>
@@ -343,6 +344,107 @@ export default function Dashboard() {
     </main>
   );
 }
+
+
+
+type BudgetCycle = { id: string; start_date: string; end_date: string; status: "active" | "closed"; started_by: string };
+function BudgetCycleCard({ userId, payFrequency, nextPayday, onScheduleUpdated }: {
+  userId: string | null;
+  payFrequency: string;
+  nextPayday: string | null;
+  onScheduleUpdated: (frequency: string, date: string) => void;
+}) {
+  const [cycle, setCycle] = useState<BudgetCycle | null>(null);
+  const [history, setHistory] = useState<BudgetCycle[]>([]);
+  const [frequency, setFrequency] = useState(["weekly","biweekly","monthly"].includes(payFrequency) ? payFrequency : "biweekly");
+  const [payday, setPayday] = useState(nextPayday ?? "");
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => { setFrequency(["weekly","biweekly","monthly"].includes(payFrequency) ? payFrequency : "biweekly"); }, [payFrequency]);
+  useEffect(() => { setPayday(nextPayday ?? ""); }, [nextPayday]);
+
+  async function loadCycles() {
+    if (!userId) { setLoading(false); return; }
+    const { data, error } = await createClient().from("budget_cycles").select("id,start_date,end_date,status,started_by")
+      .eq("owner_id", userId).order("start_date", { ascending: false }).limit(8);
+    if (error) setMessage("Couldn't load your budget cycle: " + error.message);
+    else {
+      const rows = (data ?? []) as BudgetCycle[];
+      setCycle(rows.find(row => row.status === "active") ?? null);
+      setHistory(rows.filter(row => row.status === "closed").slice(0,3));
+    }
+    setLoading(false);
+  }
+  useEffect(() => { void loadCycles(); }, [userId]);
+
+  function dateLabel(value: string) {
+    return new Date(value + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  async function saveSchedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!payday || !userId) return;
+    setSaving(true); setMessage("");
+    const { error } = await createClient().rpc("update_budget_pay_schedule", { p_frequency: frequency, p_next_payday: payday });
+    if (error) setMessage("Couldn't update payday schedule: " + error.message);
+    else {
+      onScheduleUpdated(frequency, payday);
+      setEditing(false);
+      setMessage("Payday schedule saved. Your current cycle now ends the day before your next payday.");
+      await loadCycles();
+    }
+    setSaving(false);
+  }
+
+  async function startManualCycle() {
+    if (!userId || saving) return;
+    if (!window.confirm("Start a new budget cycle today? Your current cycle will be closed and saved in history.")) return;
+    setSaving(true); setMessage("");
+    const today = new Date();
+    const localToday = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"), String(today.getDate()).padStart(2,"0")].join("-");
+    const { data, error } = await createClient().rpc("create_manual_budget_cycle", { p_start_date: localToday });
+    if (error) setMessage("Couldn't start a new cycle: " + error.message);
+    else {
+      const nextDate = (data as BudgetCycle)?.end_date;
+      const next = nextDate ? new Date(nextDate + "T12:00:00") : null;
+      if (next) next.setDate(next.getDate()+1);
+      const nextValue = next ? [next.getFullYear(),String(next.getMonth()+1).padStart(2,"0"),String(next.getDate()).padStart(2,"0")].join("-") : payday;
+      setPayday(nextValue);
+      onScheduleUpdated(frequency, nextValue);
+      setMessage("Fresh cycle started. Your previous cycle is safely saved in history.");
+      await loadCycles();
+    }
+    setSaving(false);
+  }
+
+  return <section className="glass-card budget-cycle-card">
+    <div className="budget-cycle-main">
+      <div className="budget-cycle-copy">
+        <div className="card-label">YOUR BUDGET RHYTHM</div>
+        <h2><CalendarDays size={18}/> Budget cycle</h2>
+        {loading ? <p>Checking your current cycle…</p> : cycle
+          ? <p>Current cycle <strong>{dateLabel(cycle.start_date)} – {dateLabel(cycle.end_date)}</strong></p>
+          : <p>Your first cycle will appear after your payday schedule is saved and the cycle service runs.</p>}
+        <small>{nextPayday ? "Next scheduled payday: " + dateLabel(nextPayday) : "Add your next payday to turn on automatic cycles."}</small>
+      </div>
+      <div className="budget-cycle-actions">
+        <button type="button" className="secondary-button" onClick={() => setEditing(value => !value)}><Pencil size={14}/>{editing ? "Close schedule" : "Payday settings"}</button>
+        <button type="button" className="primary-button" onClick={() => void startManualCycle()} disabled={saving || loading}><RotateCwIcon/> Start cycle now</button>
+      </div>
+    </div>
+    {editing && <form className="budget-cycle-form" onSubmit={saveSchedule}>
+      <label>Pay frequency<select value={frequency} onChange={event => setFrequency(event.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Every two weeks</option><option value="monthly">Monthly</option></select></label>
+      <label>Next payday<input type="date" value={payday} onChange={event => setPayday(event.target.value)} required/></label>
+      <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save schedule"}</button>
+    </form>}
+    {history.length > 0 && <div className="budget-cycle-history"><span>RECENT CYCLES</span>{history.map(item => <div key={item.id}><span>{dateLabel(item.start_date)} – {dateLabel(item.end_date)}</span><small>{item.started_by === "manual" ? "Manual start" : item.started_by === "scheduled" ? "Scheduled" : "Initial cycle"}</small></div>)}</div>}
+    {message && <p className="budget-cycle-message" role="status">{message}</p>}
+  </section>;
+}
+function RotateCwIcon() { return <span aria-hidden="true">↻</span>; }
 
 
 type IncomeSource = { id: string; name: string; source_type: string; amount: number; frequency: string; next_pay_date: string | null; is_active: boolean; notes: string | null };
