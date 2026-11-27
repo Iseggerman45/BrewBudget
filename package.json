@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dist:mac": "electron-builder --config electron-builder.config.cjs --mac dmg --universal"
+    "dist:mac": "electron-builder --config electron-builder.config.cjs --mac dmg --universal --publish never"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
