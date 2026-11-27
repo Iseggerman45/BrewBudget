@@ -9,7 +9,7 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000" },
 ];
 
-const nextConfig: NextConfig = {
+const nextConfig: NextConfig = {\n  poweredByHeader: false,
   async headers() {
     return [
       {
