@@ -19,7 +19,7 @@ import {
 type Period = "Monthly" | "Biweekly";
 type Tab = "Overview" | "Income" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
 type Debt = { id: number; name: string; original: number; balance: number };
-type Transaction = { name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
+type Transaction = { id?: string; categoryId?: string | null; name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
 type CategoryItem = { id?: string; name: string; spent: number; budget: number; budgetPeriod: "monthly" | "biweekly"; color: string; icon: string };
 
 const initialTransactions: Transaction[] = [];
@@ -145,7 +145,7 @@ export default function Dashboard() {
       if (!active || !user) return;
       setCurrentUserId(user.id);
       const [transactionResult, accountResponse] = await Promise.all([
-        supabase.from("transactions").select("description,merchant,amount,transaction_type,transaction_date,categories(name,icon,color)").eq("owner_id", user.id).neq("transaction_type", "transfer").order("transaction_date", { ascending: false }).limit(100),
+        supabase.from("transactions").select("id,category_id,description,merchant,amount,transaction_type,transaction_date,categories(name,icon,color)").eq("owner_id", user.id).neq("transaction_type", "transfer").order("transaction_date", { ascending: false }).limit(100),
         fetch("/api/accounts", { cache: "no-store" })
       ]);
       if (active && transactionResult.data) {
@@ -169,7 +169,7 @@ export default function Dashboard() {
           const rawDate = row.transaction_date ? String(row.transaction_date) : "";
           const dateValue = rawDate ? new Date(/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDate) ? rawDate + "T12:00:00" : rawDate) : null;
           const date = dateValue && !Number.isNaN(dateValue.getTime()) ? dateValue.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Date unavailable";
-          return { name: merchant, category: categoryName, date, amount: isIncome ? Number(row.amount) : -Number(row.amount), icon, color, type: isIncome ? "income" : "expense" } as Transaction;
+          return { id: row.id, categoryId: row.category_id, name: merchant, category: categoryName, date, amount: isIncome ? Number(row.amount) : -Number(row.amount), icon, color, type: isIncome ? "income" : "expense" } as Transaction;
         });
         setTransactions(imported);
         const spendTotals: Record<string, number> = {};
@@ -411,7 +411,7 @@ export default function Dashboard() {
               <section className="glass-card insight-card"><div className="insight-top"><div className="insight-icon"><Sparkles size={17}/></div><span className="card-label">YOUR NEXT STEP</span></div><h2>Good things take a little time.</h2><p>Start with one small step. Add an expense, set a budget, or connect an account. You don’t have to do it all today.</p><div className="insight-bottom"><span className="insight-spark">✳</span> Small steps make a strong brew.</div></section>
             </div>
             <footer className="footer-note"><Coffee size={14}/> Made for the daily grind, at your own pace. <span>·</span> BrewBudget <span className="footer-version">v0.1.0</span></footer>
-          </> : tab === "Income" ? <IncomePage userId={currentUserId}/> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} setBudgetSpent={setBudgetSpent} categories={categoryList} userId={currentUserId} nextPayday={nextPayday} payFrequency={payFrequency} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }}/>}
+          </> : tab === "Income" ? <IncomePage userId={currentUserId}/> : tab === "Debt" ? <DebtPage debts={debts} onAdd={() => setShowDebtModal(true)} onPayment={() => { setNewCategory("Debt payment"); setPaymentDebtId(debts[0] ? String(debts[0].id) : ""); setShowAdd(true); }} /> : <SubPage tab={tab} transactions={filteredTransactions} search={search} setSearch={setSearch} setShowAdd={setShowAdd} budgetSpent={budgetSpent} setBudgetSpent={setBudgetSpent} categories={categoryList} userId={currentUserId} nextPayday={nextPayday} payFrequency={payFrequency} onCategoryChange={(updated) => { setCategoryList(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]); setBudgetSpent(current => ({ ...current, [updated.name]: current[updated.name] ?? updated.spent })); }} onCategoryDelete={(categoryId, categoryName) => { setCategoryList(current => current.filter(item => item.id !== categoryId)); setBudgetSpent(current => { const next = { ...current }; delete next[categoryName]; return next; }); }} onTransactionUpdated={(id, category) => setTransactions(current => current.map(item => item.id === id ? { ...item, categoryId: category.id, category: category.name, icon: category.icon, color: category.color } : item))}/>}
         </div>
       </section>
 
@@ -603,15 +603,38 @@ function IncomePage({ userId }: { userId: string | null }) {
   </div>;
 }
 
-function TransactionList({ transactions }: { transactions: Transaction[] }) {
-  return <div className="transaction-list">{transactions.map((t,i) => {
-    const color = /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : "#CA9EE6";
-    return <div className="transaction-row" key={t.name+i}>
-      <div className="transaction-icon" style={{ color, backgroundColor: color + "22" }}><CategoryIcon name={t.icon}/></div>
-      <div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div>
-      <div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div>
-    </div>;
-  })}</div>;
+function TransactionList({ transactions, categories, onSaveCategory }: { transactions: Transaction[]; categories: CategoryItem[]; onSaveCategory: (transaction: Transaction, category: CategoryItem) => Promise<void> }) {
+  const [editing, setEditing] = useState<Transaction | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  async function saveCategory() {
+    if (!editing || !selectedCategory) return;
+    const category = categories.find(item => item.id === selectedCategory);
+    if (!category) return;
+    setSaving(true); setMessage("");
+    try { await onSaveCategory(editing, category); setEditing(null); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't update this transaction."); }
+    finally { setSaving(false); }
+  }
+  return <>
+    <div className="transaction-list">{transactions.map((t,i) => {
+      const color = /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : "#CA9EE6";
+      return <div className="transaction-row" key={t.id ?? t.name+i}>
+        <div className="transaction-icon" style={{ color, backgroundColor: color + "22" }}><CategoryIcon name={t.icon}/></div>
+        <div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div>
+        <div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div>
+        {t.id && <button type="button" className="bill-edit" aria-label={`Edit category for ${t.name}`} title="Change category" onClick={() => { setEditing(t); setSelectedCategory(t.categoryId ?? ""); setMessage(""); }}><Pencil size={14}/></button>}
+      </div>;
+    })}</div>
+    {editing && <div className="modal-backdrop" onClick={() => setEditing(null)}><section className="expense-modal" onClick={event => event.stopPropagation()}>
+      <div className="modal-head"><div><div className="card-label">TRANSACTION REVIEW</div><h2>Change category</h2></div><button type="button" className="icon-button" onClick={() => setEditing(null)}><X size={18}/></button></div>
+      <p className="subtitle">{editing.name} · {money(Math.abs(editing.amount))}</p>
+      <label>Category<select value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)}><option value="">Choose a category</option>{categories.map(category => <option key={category.id ?? category.name} value={category.id ?? ""}>{category.name}</option>)}</select></label>
+      {message && <p className="budget-feedback" role="alert">{message}</p>}
+      <button className="primary-button" type="button" disabled={saving || !selectedCategory} onClick={() => void saveCategory()}>{saving ? "Saving…" : "Save category"}</button>
+    </section></div>}
+  </>;
 }
 
 function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => void; onPayment: () => void }) {
@@ -638,7 +661,7 @@ function advanceBillDueDate(dateString: string, frequency: string): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, setBudgetSpent, categories, userId, nextPayday, payFrequency, onCategoryChange, onCategoryDelete }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; setBudgetSpent: (value: Record<string, number>) => void; categories: CategoryItem[]; userId: string | null; nextPayday: string | null; payFrequency: string; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void }) {
+function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent, setBudgetSpent, categories, userId, nextPayday, payFrequency, onCategoryChange, onCategoryDelete, onTransactionUpdated }: { tab: Tab; transactions: Transaction[]; search: string; setSearch: (s:string)=>void; setShowAdd: (b:boolean)=>void; budgetSpent: Record<string, number>; setBudgetSpent: (value: Record<string, number>) => void; categories: CategoryItem[]; userId: string | null; nextPayday: string | null; payFrequency: string; onCategoryChange: (category: CategoryItem)=>void; onCategoryDelete: (categoryId: string, categoryName: string)=>void; onTransactionUpdated: (id: string, category: CategoryItem)=>void }) {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [categoryBudget, setCategoryBudget] = useState("");
@@ -933,7 +956,12 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     <div className="subpage-heading"><div><h1>{tab === "Goals" ? "Savings goals" : tab}</h1><p className="subtitle">{descriptions[tab]}</p></div>
       {(tab === "Transactions" || tab === "Budgets") && <div className="budget-heading-actions">{tab === "Budgets" && <button className="secondary-button" onClick={() => setShowCategoryForm(value => !value)}><Plus size={16}/> Category</button>}<button className="primary-button" onClick={() => setShowAdd(true)}><Plus size={17}/>{tab === "Budgets" ? "Add expense" : "Add transaction"}</button></div>}
     </div>
-    {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
+    {tab === "Transactions" ? <section className="glass-card subpage-panel"><div className="search-box"><Search size={17}/><input placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)}/><SlidersHorizontal size={16}/></div><TransactionList transactions={transactions} categories={categories} onSaveCategory={async (transaction, category) => {
+      if (!userId || !transaction.id) throw new Error("This transaction can't be edited right now.");
+      const { error } = await createClient().from("transactions").update({ category_id: category.id }).eq("id", transaction.id).eq("owner_id", userId);
+      if (error) throw error;
+      onTransactionUpdated(transaction.id, category);
+    }}/>{transactions.length===0 && <div className="empty-state">No transactions match that search.</div>}</section> :
     tab === "Budgets" ? <>
       {showCategoryForm && <form className="glass-card add-category-form" onSubmit={event => { event.preventDefault(); void createCategory(); }}>
         <div className="add-category-title"><div><div className="card-label">MAKE IT YOURS</div><h2>New budget category</h2></div><button type="button" className="more-button" onClick={() => setShowCategoryForm(false)} aria-label="Close"><X size={18}/></button></div>
