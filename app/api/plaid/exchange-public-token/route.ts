@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptPlaidAccessToken, plaidIsConfigured, plaidRequest } from "@/lib/plaid/server";
 import { syncPlaidOwnerItems } from "@/lib/plaid/sync-transactions";
+import { guardSensitiveApi, readJsonBody } from "@/lib/security/api";
 
 export const runtime = "nodejs";
 
@@ -23,14 +24,25 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
+
+  const blocked = await guardSensitiveApi(request, user.id, "plaid-token-exchange", 5, 900);
+  if (blocked) return blocked;
+
   if (!plaidIsConfigured() || !process.env.SUPABASE_SECRET_KEY || !process.env.PLAID_TOKEN_ENCRYPTION_KEY) {
     return NextResponse.json({ error: "The secure bank connection service is not fully configured yet." }, { status: 503 });
   }
 
-  const body = await request.json().catch(() => null);
-  const publicToken = typeof body?.public_token === "string" ? body.public_token : "";
-  const institutionName = typeof body?.institution_name === "string" ? body.institution_name.slice(0, 120) : null;
-  if (!publicToken || publicToken.length > 4096) return NextResponse.json({ error: "A valid one-time Plaid public token is required." }, { status: 400 });
+  const body = await readJsonBody(request);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "A valid request body is required." }, { status: 400 });
+  }
+  const publicToken = "public_token" in body && typeof body.public_token === "string" ? body.public_token : "";
+  const institutionName = "institution_name" in body && typeof body.institution_name === "string"
+    ? body.institution_name.slice(0, 120)
+    : null;
+  if (!publicToken || publicToken.length > 4096) {
+    return NextResponse.json({ error: "A valid one-time Plaid public token is required." }, { status: 400 });
+  }
 
   try {
     const exchanged = await plaidRequest<ExchangeResult>("/item/public_token/exchange", { public_token: publicToken });
@@ -51,7 +63,7 @@ export async function POST(request: Request) {
       name: account.official_name || account.name,
       institution: institutionName,
       account_type: account.type === "depository" ? (account.subtype === "savings" ? "savings" : "checking") : account.type === "credit" ? "credit_card" : account.type === "investment" ? "investment" : account.type === "loan" ? "loan" : "other",
-      last_four: /^\d{4}$/.test(account.mask ?? "") ? account.mask : null,
+      last_four: /^\\d{4}$/.test(account.mask ?? "") ? account.mask : null,
       current_balance: account.balances?.current ?? 0,
       credit_limit: account.type === "credit" ? account.balances?.limit ?? null : null,
       currency_code: account.balances?.iso_currency_code || "USD",
@@ -64,11 +76,17 @@ export async function POST(request: Request) {
     }
 
     let transactionSync: { items_synced: number; transactions_added: number } | null = null;
-    try { transactionSync = await syncPlaidOwnerItems(user.id); } catch { /* Plaid may need a short time to prepare the first transaction batch. The user can sync again from Accounts. */ }
+    try {
+      transactionSync = await syncPlaidOwnerItems(user.id);
+    } catch {
+      // First transaction availability can lag behind a successful bank connection.
+    }
 
-    return NextResponse.json({ connected: true, accounts_added: rows.length, transactions_added: transactionSync?.transactions_added ?? 0 }, { headers: { "Cache-Control": "no-store" } });
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "The bank connection could not be completed.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json(
+      { connected: true, accounts_added: rows.length, transactions_added: transactionSync?.transactions_added ?? 0 },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return NextResponse.json({ error: "The bank connection could not be completed. Please try again." }, { status: 502 });
   }
 }
