@@ -1,0 +1,6 @@
+{
+  "name": "brewbudget-desktop",
+  "version": "0.1.0",
+  "description": "BrewBudget secure desktop shell",
+  "main": "main.cjs"
+}
