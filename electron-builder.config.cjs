@@ -3,8 +3,7 @@ module.exports = {
   productName: "BrewBudget",
   electronVersion: "45.5.0",
   directories: {
-    app: "desktop",
-    output: "dist",
+    output: "../dist",
   },
   files: [
     "main.cjs",
