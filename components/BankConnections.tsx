@@ -11,6 +11,7 @@ type Account = {
   account_type: string;
   last_four: string | null;
   current_balance: number;
+  credit_limit: number | null;
   currency_code: string;
   connection_source: string;
 };
@@ -79,6 +80,19 @@ export default function BankConnections() {
     if (linkToken && ready) open();
   }, [linkToken, ready, open]);
 
+  async function syncTransactions() {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/plaid/sync-transactions", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Could not sync transactions.");
+      setNotice(`Transactions updated. ${result.transactions_added ?? 0} new transaction(s) imported.`);
+      await loadAccounts();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not sync transactions.");
+    } finally { setBusy(false); }
+  }
+
   async function connectBank() {
     setBusy(true);
     setError("");
@@ -105,11 +119,12 @@ export default function BankConnections() {
           <section className="glass-card account-card" key={account.id}>
             <div className="account-logo"><Landmark size={21}/></div>
             <div><strong>{account.name}</strong><p>{account.institution || "Connected bank"} · {account.account_type}{account.last_four ? ` •• ${account.last_four}` : ""}</p></div>
-            <div className="account-balance">{new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency_code || "USD" }).format(account.current_balance ?? 0)}</div>
+            <div className="account-balance"><strong>{new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency_code || "USD" }).format(account.current_balance ?? 0)}</strong><small>{account.account_type === "credit_card" ? "Balance owed" : "Current balance"}</small>{account.account_type === "credit_card" && account.credit_limit ? <small>{new Intl.NumberFormat("en-US", { style: "currency", currency: account.currency_code || "USD" }).format(Math.max(0, account.credit_limit - account.current_balance))} available</small> : null}</div>
           </section>
         ))}
-        {!accounts.length && <section className="glass-card bank-empty"><div className="debt-empty-icon"><Wallet size={24}/></div><h2>Your accounts start here.</h2><p>Connect a checking, savings, or credit account securely through Plaid. Your accounts will appear here once linked.</p></section>}
+        {!accounts.length && <section className="glass-card bank-empty"><div className="debt-empty-icon"><Wallet size={24}/></div><h2>Your accounts start here.</h2><p>Connect a checking, savings, or credit card securely through Plaid. Card purchases will count toward your budget, while card payments are kept separate to avoid double-counting.</p></section>}
       </div>
+      <button className="connect-card" onClick={syncTransactions} disabled={busy || !accounts.length}><RefreshCw size={17}/>{busy ? "Updating…" : "Sync transactions"}</button>
       <button className="connect-card" onClick={connectBank} disabled={busy || (Boolean(linkToken) && !ready)}>
         {busy ? <RefreshCw size={17} className="bank-spinner"/> : <Plus size={18}/>}
         {busy ? "Preparing secure connection…" : "Connect a bank account"}
