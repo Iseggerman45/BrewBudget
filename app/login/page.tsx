@@ -39,7 +39,7 @@ export default function LoginPage() {
         },
       });
       if (authError) throw authError;
-    } catch (caught) {
+    } catch {
       setError(`We couldn’t continue with ${provider === "google" ? "Google" : "Apple"}. Please try again.`);
       setOauthBusy(null);
     }
@@ -81,7 +81,7 @@ export default function LoginPage() {
         router.replace("/dashboard");
         router.refresh();
       }
-    } catch (caught) {
+    } catch {
       setError("We couldn’t complete that request. Check your details and try again.");
     } finally {
       setBusy(false);
