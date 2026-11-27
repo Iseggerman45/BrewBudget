@@ -40,7 +40,7 @@ export default function LoginPage() {
       });
       if (authError) throw authError;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : `Unable to continue with ${provider === "google" ? "Google" : "Apple"}.`);
+      setError(`We couldn’t continue with ${provider === "google" ? "Google" : "Apple"}. Please try again.`);
       setOauthBusy(null);
     }
   }
@@ -82,7 +82,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
+      setError("We couldn’t complete that request. Check your details and try again.");
     } finally {
       setBusy(false);
     }
@@ -124,7 +124,7 @@ export default function LoginPage() {
         <form className="auth-form" onSubmit={submit}>
           {mode === "signup" && <label><span>Your name</span><div className="auth-input-wrap"><UserRound size={17}/><input value={name} onChange={event => setName(event.target.value)} placeholder="How should we call you?" autoComplete="name" required /></div></label>}
           <label><span>Email address</span><div className="auth-input-wrap"><Mail size={17}/><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" required /></div></label>
-          <label><span>Password</span><div className="auth-input-wrap"><LockKeyhole size={17}/><input type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 8 characters" autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={8} required/><button type="button" className="auth-show-password" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></label>
+          <label><span>Password</span><div className="auth-input-wrap"><LockKeyhole size={17}/><input type={showPassword ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} placeholder={mode === "signup" ? "At least 12 characters" : "Your password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={mode === "signup" ? 12 : 1} required/><button type="button" className="auth-show-password" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></label>
           <button className="auth-submit" disabled={authBusy || setupNeeded}>{busy ? "Please wait..." : mode === "signup" ? "Create my account" : "Sign in"} <span>→</span></button>
         </form>
 
