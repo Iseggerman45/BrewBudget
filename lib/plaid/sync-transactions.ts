@@ -78,11 +78,17 @@ export async function syncPlaidOwnerItems(ownerId: string) {
     const { data: accounts, error: accountError } = await admin.from("accounts")
       .select("id,provider_account_id").eq("owner_id", ownerId).eq("connection_source", "plaid");
     if (accountError) throw accountError;
-    const accountIds = new Map((accounts ?? []).map((account: any) => [account.provider_account_id, account.id]));
+    const accountIds = new Map<string, string>();
+    for (const account of accounts ?? []) {
+      if (account.provider_account_id) accountIds.set(account.provider_account_id, account.id);
+    }
     const { data: categories, error: categoryError } = await admin.from("categories")
       .select("id,name").eq("owner_id", ownerId).eq("category_type", "expense");
     if (categoryError) throw categoryError;
-    const categoryIds = new Map((categories ?? []).map((category: any) => [category.name.toLowerCase(), category.id]));
+    const categoryIds = new Map<string, string>();
+    for (const category of categories ?? []) {
+      categoryIds.set(category.name.toLowerCase(), category.id);
+    }
 
     const originalCursor = item.transaction_cursor ?? undefined;
     let cursor = originalCursor;
