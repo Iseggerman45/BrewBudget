@@ -152,7 +152,24 @@ export default function Dashboard() {
         const imported = transactionResult.data.map((row: any) => {
           const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
           const isIncome = row.transaction_type === "income";
-          return { name: row.merchant || row.description || "Transaction", category: category?.name || (isIncome ? "Income" : "Uncategorized"), date: row.transaction_date ? new Date(row.transaction_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "", amount: isIncome ? Number(row.amount) : -Number(row.amount), icon: category?.icon || (isIncome ? "income" : "receipt"), color: category?.color || "purple", type: isIncome ? "income" : "expense" } as Transaction;
+          const merchant = row.merchant || row.description || "Transaction";
+          const merchantKey = merchant.toLowerCase();
+          const merchantMatch: { name: string; icon: string; color: string } | undefined =
+            /united airlines|airline|hotel|airbnb/.test(merchantKey) ? { name: "Travel", icon: "plane", color: "#8CAAEE" } :
+            /uber|lyft|taxi/.test(merchantKey) ? { name: "Transportation", icon: "car", color: "#E5A86A" } :
+            /kfc|mcdonald|starbucks|restaurant|cafe|taco|pizza|chipotle/.test(merchantKey) ? { name: "Restaurants", icon: "food", color: "#E78284" } :
+            /bicycle|climbing|gym|fitness/.test(merchantKey) ? { name: "Fitness", icon: "dumbbell", color: "#A6D189" } :
+            /grocery|market|safeway|walmart|costco|trader joe/.test(merchantKey) ? { name: "Groceries", icon: "shopping", color: "#A6D189" } :
+            /automatic payment|payment thank|credit card payment/.test(merchantKey) ? { name: "Card payment", icon: "credit-card", color: "#E5A86A" } :
+            /fun|cinema|movie|ticket/.test(merchantKey) ? { name: "Entertainment", icon: "ticket", color: "#CA9EE6" } : undefined;
+          const visual = category ? categoryVisual(category.name) : null;
+          const icon = isIncome ? "income" : category?.icon || visual?.icon || merchantMatch?.icon || "receipt";
+          const color = isIncome ? "#CA9EE6" : category?.color || visual?.color || merchantMatch?.color || "#99D1DB";
+          const categoryName = isIncome ? "Income" : category?.name || merchantMatch?.name || "Uncategorized";
+          const rawDate = row.transaction_date ? String(row.transaction_date) : "";
+          const dateValue = rawDate ? new Date(/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDate) ? rawDate + "T12:00:00" : rawDate) : null;
+          const date = dateValue && !Number.isNaN(dateValue.getTime()) ? dateValue.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Date unavailable";
+          return { name: merchant, category: categoryName, date, amount: isIncome ? Number(row.amount) : -Number(row.amount), icon, color, type: isIncome ? "income" : "expense" } as Transaction;
         });
         setTransactions(imported);
         const spendTotals: Record<string, number> = {};
@@ -587,7 +604,14 @@ function IncomePage({ userId }: { userId: string | null }) {
 }
 
 function TransactionList({ transactions }: { transactions: Transaction[] }) {
-  return <div className="transaction-list">{transactions.map((t,i) => <div className="transaction-row" key={t.name+i}><div className={`transaction-icon ${t.color}`}><CategoryIcon name={t.icon}/></div><div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div><div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div></div>)}</div>;
+  return <div className="transaction-list">{transactions.map((t,i) => {
+    const color = /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : "#CA9EE6";
+    return <div className="transaction-row" key={t.name+i}>
+      <div className="transaction-icon" style={{ color, backgroundColor: color + "22" }}><CategoryIcon name={t.icon}/></div>
+      <div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div>
+      <div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div>
+    </div>;
+  })}</div>;
 }
 
 function DebtPage({ debts, onAdd, onPayment }: { debts: Debt[]; onAdd: () => void; onPayment: () => void }) {
