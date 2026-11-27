@@ -5,6 +5,19 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Effects synchronize URL state and async data loading with React state.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
+  {
+    files: ["electron/**/*.cjs"],
+    rules: {
+      // Electron's main process uses CommonJS by design.
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",
