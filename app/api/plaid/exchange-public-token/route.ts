@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptPlaidAccessToken, plaidIsConfigured, plaidRequest } from "@/lib/plaid/server";
+import { syncPlaidOwnerItems } from "@/lib/plaid/sync-transactions";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ type AccountsResult = {
     type: string;
     subtype?: string | null;
     mask?: string | null;
-    balances: { current?: number | null; iso_currency_code?: string | null };
+    balances: { current?: number | null; limit?: number | null; iso_currency_code?: string | null };
   }>;
 };
 
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
       account_type: account.type === "depository" ? (account.subtype === "savings" ? "savings" : "checking") : account.type === "credit" ? "credit_card" : account.type === "investment" ? "investment" : account.type === "loan" ? "loan" : "other",
       last_four: /^\d{4}$/.test(account.mask ?? "") ? account.mask : null,
       current_balance: account.balances?.current ?? 0,
+      credit_limit: account.type === "credit" ? account.balances?.limit ?? null : null,
       currency_code: account.balances?.iso_currency_code || "USD",
       connection_source: "plaid",
       provider_account_id: account.account_id,
@@ -61,7 +63,10 @@ export async function POST(request: Request) {
       if (accountError) throw accountError;
     }
 
-    return NextResponse.json({ connected: true, accounts_added: rows.length }, { headers: { "Cache-Control": "no-store" } });
+    let transactionSync: { items_synced: number; transactions_added: number } | null = null;
+    try { transactionSync = await syncPlaidOwnerItems(user.id); } catch { /* Plaid may need a short time to prepare the first transaction batch. The user can sync again from Accounts. */ }
+
+    return NextResponse.json({ connected: true, accounts_added: rows.length, transactions_added: transactionSync?.transactions_added ?? 0 }, { headers: { "Cache-Control": "no-store" } });
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "The bank connection could not be completed.";
     return NextResponse.json({ error: message }, { status: 502 });
