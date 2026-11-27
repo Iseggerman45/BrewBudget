@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       name: account.official_name || account.name,
       institution: institutionName,
       account_type: account.type === "depository" ? (account.subtype === "savings" ? "savings" : "checking") : account.type === "credit" ? "credit_card" : account.type === "investment" ? "investment" : account.type === "loan" ? "loan" : "other",
-      last_four: /^\\d{4}$/.test(account.mask ?? "") ? account.mask : null,
+      last_four: /^\d{4}$/.test(account.mask ?? "") ? account.mask : null,
       current_balance: account.balances?.current ?? 0,
       credit_limit: account.type === "credit" ? account.balances?.limit ?? null : null,
       currency_code: account.balances?.iso_currency_code || "USD",
