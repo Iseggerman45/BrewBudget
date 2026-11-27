@@ -96,9 +96,13 @@ export async function POST(request: Request) {
     // connection and revoke it with Plaid so no orphaned credential remains.
     if (exchanged) {
       if (itemStored && admin) {
-        await admin.from("plaid_items").delete()
-          .eq("owner_id", user.id)
-          .eq("item_id", exchanged.item_id);
+        try {
+          await admin.from("plaid_items").delete()
+            .eq("owner_id", user.id)
+            .eq("item_id", exchanged.item_id);
+        } catch {
+          // Continue with provider revocation even if database cleanup is unavailable.
+        }
       }
       try {
         await plaidRequest("/item/remove", { access_token: exchanged.access_token });
