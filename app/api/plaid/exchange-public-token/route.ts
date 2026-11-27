@@ -44,10 +44,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A valid one-time Plaid public token is required." }, { status: 400 });
   }
 
+  let exchanged: ExchangeResult | null = null;
+  let admin: ReturnType<typeof createAdminClient> | null = null;
+  let itemStored = false;
+
   try {
-    const exchanged = await plaidRequest<ExchangeResult>("/item/public_token/exchange", { public_token: publicToken });
+    exchanged = await plaidRequest<ExchangeResult>("/item/public_token/exchange", { public_token: publicToken });
     const accountData = await plaidRequest<AccountsResult>("/accounts/get", { access_token: exchanged.access_token });
-    const admin = createAdminClient();
+    admin = createAdminClient();
 
     const { error: itemError } = await admin.from("plaid_items").insert({
       owner_id: user.id,
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     });
     if (itemError) throw itemError;
+    itemStored = true;
 
     const rows = accountData.accounts.map(account => ({
       owner_id: user.id,
@@ -87,6 +92,18 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch {
+    // If the token was stored but the account setup failed, remove the partial
+    // connection and revoke it with Plaid so no orphaned credential remains.
+    if (itemStored && exchanged && admin) {
+      await admin.from("plaid_items").delete()
+        .eq("owner_id", user.id)
+        .eq("item_id", exchanged.item_id);
+      try {
+        await plaidRequest("/item/remove", { access_token: exchanged.access_token });
+      } catch {
+        // The database record is already removed; a failed revoke is not exposed.
+      }
+    }
     return NextResponse.json({ error: "The bank connection could not be completed. Please try again." }, { status: 502 });
   }
 }
