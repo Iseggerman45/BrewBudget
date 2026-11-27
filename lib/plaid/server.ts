@@ -26,11 +26,19 @@ export async function plaidRequest<T>(path: string, body: Record<string, unknown
     },
     body: JSON.stringify(body),
     cache: "no-store",
+    signal: AbortSignal.timeout(30_000),
   });
-  const payload = await response.json();
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("Plaid returned an unreadable response.");
+  }
+
   if (!response.ok) {
-    const message = payload?.error_message ?? "Plaid could not complete the request.";
-    throw new Error(message);
+    // Do not propagate provider messages or request metadata to callers.
+    throw new Error("Plaid could not complete the request.");
   }
   return payload as T;
 }
