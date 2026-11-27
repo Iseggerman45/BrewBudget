@@ -36,7 +36,12 @@ function categoryName(txn: PlaidTxn) {
   if (/restaurant|coffee|fast food|food and drink/.test(text) || primary === "FOOD_AND_DRINK") return "Restaurants";
   if (/gas station|fuel/.test(text) || primary === "TRANSPORTATION") return "Gas & fuel";
   if (/rent|mortgage/.test(text) || primary === "RENT_AND_UTILITIES") return "Mortgage / rent";
-  if (/electric|utility|water|internet|phone/.test(text) || primary === "RENT_AND_UTILITIES") return "Utilities";
+  if (/electric/.test(text)) return "Electricity";
+  if (/natural gas|gas bill/.test(text)) return "Natural gas";
+  if (/water|sewer/.test(text)) return "Water & sewer";
+  if (/internet/.test(text)) return "Internet";
+  if (/phone|wireless/.test(text)) return "Phone";
+  if (/utility/.test(text) || primary === "RENT_AND_UTILITIES") return "Electricity";
   if (/medical|pharmacy|doctor|health/.test(text) || primary === "MEDICAL") return "Health & medical";
   if (/airline|hotel|travel/.test(text) || primary === "TRAVEL") return "Travel";
   if (/subscription|streaming/.test(text) || primary === "ENTERTAINMENT") return "Entertainment";
@@ -47,11 +52,28 @@ function categoryName(txn: PlaidTxn) {
 export async function syncPlaidOwnerItems(ownerId: string) {
   const admin = createAdminClient();
   const { data: items, error: itemError } = await admin.from("plaid_items")
-    .select("id,owner_id,encrypted_access_token,transaction_cursor").eq("owner_id", ownerId);
+    .select("id,owner_id,institution_name,encrypted_access_token,transaction_cursor").eq("owner_id", ownerId);
   if (itemError) throw itemError;
   let addedCount = 0;
   for (const item of items ?? []) {
     const accessToken = decryptPlaidAccessToken(item.encrypted_access_token);
+    const balanceData = await plaidRequest<{ accounts: Array<{ account_id: string; name: string; official_name?: string | null; type: string; subtype?: string | null; mask?: string | null; balances: { current?: number | null; limit?: number | null; iso_currency_code?: string | null } }> }>("/accounts/get", { access_token: accessToken });
+    const refreshedAccounts = (balanceData.accounts ?? []).map(account => ({
+      owner_id: ownerId,
+      name: account.official_name || account.name,
+      institution: item.institution_name,
+      account_type: account.type === "depository" ? (account.subtype === "savings" ? "savings" : "checking") : account.type === "credit" ? "credit_card" : account.type === "investment" ? "investment" : account.type === "loan" ? "loan" : "other",
+      last_four: /^\\d{4}$/.test(account.mask ?? "") ? account.mask : null,
+      current_balance: account.balances?.current ?? 0,
+      credit_limit: account.type === "credit" ? account.balances?.limit ?? null : null,
+      currency_code: account.balances?.iso_currency_code || "USD",
+      connection_source: "plaid",
+      provider_account_id: account.account_id,
+    }));
+    if (refreshedAccounts.length) {
+      const { error: balanceError } = await admin.from("accounts").upsert(refreshedAccounts, { onConflict: "owner_id,provider_account_id" });
+      if (balanceError) throw balanceError;
+    }
     const { data: accounts, error: accountError } = await admin.from("accounts")
       .select("id,provider_account_id").eq("owner_id", ownerId).eq("connection_source", "plaid");
     if (accountError) throw accountError;
