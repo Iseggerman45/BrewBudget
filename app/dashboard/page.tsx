@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import BankConnections from "@/components/BankConnections";
 import OnboardingWizard from "@/components/OnboardingWizard";
@@ -455,7 +455,7 @@ function BudgetCycleCard({ userId, payFrequency, nextPayday, onScheduleUpdated }
   useEffect(() => { setFrequency(["weekly","biweekly","monthly"].includes(payFrequency) ? payFrequency : "biweekly"); }, [payFrequency]);
   useEffect(() => { setPayday(nextPayday ?? ""); }, [nextPayday]);
 
-  async function loadCycles() {
+  const loadCycles = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
     const { data, error } = await createClient().from("budget_cycles").select("id,start_date,end_date,status,started_by")
       .eq("owner_id", userId).order("start_date", { ascending: false }).limit(8);
@@ -466,8 +466,8 @@ function BudgetCycleCard({ userId, payFrequency, nextPayday, onScheduleUpdated }
       setHistory(rows.filter(row => row.status === "closed").slice(0,3));
     }
     setLoading(false);
-  }
-  useEffect(() => { void loadCycles(); }, [userId]);
+  }, [userId]);
+  useEffect(() => { void loadCycles(); }, [loadCycles]);
 
   function dateLabel(value: string) {
     return new Date(value + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -741,7 +741,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     }
     void loadPeriodSpending();
     return () => { active = false; };
-  }, [tab, userId, budgetPeriod, nextPayday, payFrequency, categories]);
+  }, [tab, userId, budgetPeriod, nextPayday, payFrequency, categories, setBudgetSpent]);
 
   useEffect(() => {
     if (tab !== "Budgets" || !userId) return;
