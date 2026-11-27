@@ -179,7 +179,6 @@ export default function Dashboard() {
         });
         const finalCategories = loadedCategories;
         setCategoryList(finalCategories);
-        setBudgetSpent({});
         if (finalCategories.length) setNewCategory(finalCategories[0].name);
       }
     }
