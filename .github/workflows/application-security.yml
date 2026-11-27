@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: app-security-${{ github.workflow }}-${{ github.ref }}
@@ -27,34 +27,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
-
-      - name: Apply compatible dependency security updates
-        run: npm audit fix --no-fund || true
-
-      - name: Commit reproducible dependency lockfile
-        if: github.event_name == 'push'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: lock audited dependencies"
-            git push
-          fi
-
-      - name: Install exact locked dependency tree
+      - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-
-      - name: Preserve generated lockfile for review
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: brewbudget-package-lock
-          path: package-lock.json
-          if-no-files-found: ignore
-          retention-days: 7
 
       - name: Audit dependency vulnerabilities
         run: npm audit --audit-level=high
