@@ -105,14 +105,58 @@ export async function syncPlaidOwnerItems(ownerId: string) {
       hasMore = page.has_more;
     }
 
-    for (const txn of [...added, ...modified]) {
+    const changedTransactions = [...added, ...modified];
+    const existingCategoryIds = new Map<string, string>();
+    const transactionsByAccount = new Map<string, Set<string>>();
+    for (const txn of changedTransactions) {
+      const ids = transactionsByAccount.get(txn.account_id) ?? new Set<string>();
+      ids.add(txn.transaction_id);
+      if (txn.pending_transaction_id) ids.add(txn.pending_transaction_id);
+      transactionsByAccount.set(txn.account_id, ids);
+    }
+
+    // Preserve user-assigned categories when Plaid refreshes an existing transaction.
+    for (const [providerAccountId, transactionIds] of transactionsByAccount) {
+      const accountId = accountIds.get(providerAccountId);
+      if (!accountId) continue;
+      const ids = [...transactionIds];
+      for (let start = 0; start < ids.length; start += 500) {
+        const batch = ids.slice(start, start + 500);
+        const { data: existingRows, error: existingError } = await admin.from("transactions")
+          .select("external_transaction_id,category_id")
+          .eq("owner_id", ownerId)
+          .eq("account_id", accountId)
+          .in("external_transaction_id", batch);
+        if (existingError) throw existingError;
+        for (const row of existingRows ?? []) {
+          if (row.category_id) existingCategoryIds.set(row.external_transaction_id, row.category_id);
+        }
+      }
+    }
+
+    for (const txn of changedTransactions) {
       const accountId = accountIds.get(txn.account_id);
       if (!accountId) continue;
+
+      // Plaid replaces a pending transaction with a new posted transaction ID.
+      // Remove the pending row to prevent duplicate spending in the budget.
+      if (txn.pending_transaction_id) {
+        const { error: pendingError } = await admin.from("transactions").delete()
+          .eq("owner_id", ownerId)
+          .eq("account_id", accountId)
+          .eq("external_transaction_id", txn.pending_transaction_id);
+        if (pendingError) throw pendingError;
+      }
+
       const transfer = isTransfer(txn);
       const income = txn.amount < 0 && !transfer;
       const mappedCategory = categoryName(txn);
-      const categoryId = !transfer && !income && mappedCategory
+      const suggestedCategoryId = !transfer && !income && mappedCategory
         ? categoryIds.get(mappedCategory.toLowerCase()) ?? null : null;
+      const categoryId = existingCategoryIds.get(txn.transaction_id) ??
+        (txn.pending_transaction_id ? existingCategoryIds.get(txn.pending_transaction_id) : null) ??
+        suggestedCategoryId;
+
       const { error } = await admin.from("transactions").upsert({
         owner_id: ownerId,
         account_id: accountId,
