@@ -194,7 +194,7 @@ export default function OnboardingWizard({ userId, onComplete }: Props) {
           <button className="onboarding-close" onClick={skip} disabled={saving} aria-label="Skip setup"><X size={19}/></button>
         </div>
         <div className="onboarding-progress"><div style={{ width: ((step + 1) / steps.length * 100) + "%" }}/></div>
-        <div className="onboarding-step-label">LET'S GET YOU SET UP <span>STEP {step + 1} OF {steps.length}</span></div>
+        <div className="onboarding-step-label">LET&apos;S GET YOU SET UP <span>STEP {step + 1} OF {steps.length}</span></div>
         <h1 id="onboarding-title">{["First, your workspace.", "How does your money come in?", "Give every dollar a place.", "Let's plan for the regulars."][step]}</h1>
         <p className="onboarding-lead">{[
           "We'll shape your budget around your life. You can change everything later.",
@@ -235,7 +235,7 @@ export default function OnboardingWizard({ userId, onComplete }: Props) {
             <label className="onboarding-category-check"><input type="checkbox" checked={category.selected} onChange={event => updateCategory(index, { selected: event.target.checked })}/><span className="onboarding-category-dot" style={{ background: category.color }}/><strong>{category.name}</strong></label>
             <div className="onboarding-budget-input"><span>$</span><input aria-label={category.name + " budget"} type="number" min="0" step="0.01" placeholder="Not set" value={category.amount} onChange={event => updateCategory(index, { amount: event.target.value })} disabled={!category.selected}/></div>
           </div>)}
-          <p className="onboarding-hint">Leave a budget blank if you'd rather decide later. You can customize categories after setup.</p>
+          <p className="onboarding-hint">Leave a budget blank if you&apos;d rather decide later. You can customize categories after setup.</p>
         </div>}
 
         {step === 3 && <div className="onboarding-fields">
@@ -247,9 +247,9 @@ export default function OnboardingWizard({ userId, onComplete }: Props) {
             <input aria-label="Due day of month" type="number" min="1" max="31" placeholder="Due day" value={bill.due_day} onChange={event => updateBill(index, { due_day: event.target.value })}/>
             <button type="button" onClick={() => setBills(current => current.filter((_, i) => i !== index))} aria-label="Remove bill"><Trash2 size={15}/></button>
           </div>)}
-          <div className="onboarding-optional-section"><div><strong>Debt you're paying down</strong><small>Optional—add one balance to start your debt tracker</small></div></div>
+          <div className="onboarding-optional-section"><div><strong>Debt you&apos;re paying down</strong><small>Optional—add one balance to start your debt tracker</small></div></div>
           <div className="onboarding-inline-fields"><input aria-label="Debt name" placeholder="e.g. Student loan" value={debtName} onChange={event => setDebtName(event.target.value)}/><input aria-label="Debt balance" type="number" min="0" step="0.01" placeholder="Balance $" value={debtBalance} onChange={event => setDebtBalance(event.target.value)}/><input aria-label="Interest rate" type="number" min="0" step="0.01" placeholder="APR %" value={debtRate} onChange={event => setDebtRate(event.target.value)}/></div>
-          <div className="onboarding-optional-section"><div><strong>A savings goal</strong><small>Optional—give something you're saving for a name</small></div></div>
+          <div className="onboarding-optional-section"><div><strong>A savings goal</strong><small>Optional—give something you&apos;re saving for a name</small></div></div>
           <div className="onboarding-inline-fields"><input aria-label="Savings goal name" placeholder="e.g. Emergency fund" value={goalName} onChange={event => setGoalName(event.target.value)}/><input aria-label="Savings target" type="number" min="0" step="0.01" placeholder="Target $" value={goalTarget} onChange={event => setGoalTarget(event.target.value)}/></div>
         </div>}
 
