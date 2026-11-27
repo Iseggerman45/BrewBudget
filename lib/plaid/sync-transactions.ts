@@ -24,8 +24,9 @@ type SyncPage = {
 
 function isTransfer(txn: PlaidTxn) {
   const primary = txn.personal_finance_category?.primary?.toUpperCase() ?? "";
+  const detailed = txn.personal_finance_category?.detailed?.toUpperCase() ?? "";
   const text = `${txn.name} ${txn.merchant_name ?? ""}`.toLowerCase();
-  return primary.startsWith("TRANSFER") ||
+  return primary.startsWith("TRANSFER") || detailed.includes("CREDIT_CARD_PAYMENT") ||
     /\b(credit card payment|card payment|autopay payment|payment thank you|online payment|payment to .*card|thank you payment)\b/.test(text);
 }
 
