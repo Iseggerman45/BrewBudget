@@ -1,11 +1,13 @@
 module.exports = {
   appId: "com.brewbudget.desktop",
   productName: "BrewBudget",
+  electronVersion: "45.5.0",
   directories: {
+    app: "desktop",
     output: "dist",
   },
   files: [
-    "electron/**/*",
+    "main.cjs",
     "package.json",
   ],
   mac: {
@@ -17,9 +19,6 @@ module.exports = {
     ],
     category: "public.app-category.finance",
     artifactName: "BrewBudget-${version}-mac-${arch}.${ext}",
-    // The desktop shell loads the hosted web app and does not require any
-    // Node packages at runtime. Exclude the web application's dependencies.
-    singleArchFiles: "**/*.node",
   },
   dmg: {
     title: "BrewBudget",
@@ -28,5 +27,4 @@ module.exports = {
       { x: 410, y: 180, type: "link", path: "/Applications" },
     ],
   },
-  onNodeModuleFile: () => false,
 };
