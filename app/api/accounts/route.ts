@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("accounts")
-    .select("id,name,institution,account_type,last_four,current_balance,currency_code,connection_source")
+    .select("id,name,institution,account_type,last_four,current_balance,credit_limit,currency_code,connection_source")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: "Could not load your accounts." }, { status: 500 });
