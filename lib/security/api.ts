@@ -13,7 +13,7 @@ export function hasValidSameOrigin(request: Request) {
     const requestHost = forwardedHost || new URL(request.url).host;
     const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
     const requestProto = forwardedProto || new URL(request.url).protocol.replace(":", "");
-    return parsedOrigin.host === requestHost && parsedOrigin.protocol === `${requestProto}:`;
+    return parsedOrigin.origin === `${requestProto}://${requestHost}`;
   } catch {
     return false;
   }
@@ -46,20 +46,46 @@ export async function guardSensitiveApi(
     }
     return null;
   } catch {
-    // Fail closed: sensitive endpoints must not proceed when the limiter is unavailable.
     return NextResponse.json({ error: "This service is temporarily unavailable. Please try again shortly." }, { status: 503 });
   }
 }
 
 export async function readJsonBody(request: Request, maxBytes = 16_384): Promise<unknown | null> {
+  const contentType = request.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+  if (contentType !== "application/json") return null;
+
   const declaredLength = Number(request.headers.get("content-length") ?? "0");
   if (declaredLength > maxBytes) return null;
+  if (!request.body) return null;
 
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > maxBytes) return null;
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
 
   try {
-    return JSON.parse(text);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+
+  const combined = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return JSON.parse(new TextDecoder().decode(combined));
   } catch {
     return null;
   }
