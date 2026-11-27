@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dist:mac": "electron-builder --mac dmg --universal"
+    "dist:mac": "electron-builder --config electron-builder.config.cjs --mac dmg --universal"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -67,7 +67,6 @@
           "path": "/Applications"
         }
       ]
-    },
-    "onNodeModuleFile": "./electron/skip-node-modules.cjs"
+    }
   }
 }
