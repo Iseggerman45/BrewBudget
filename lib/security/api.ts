@@ -9,11 +9,8 @@ export function hasValidSameOrigin(request: Request) {
 
   try {
     const parsedOrigin = new URL(origin);
-    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-    const requestHost = forwardedHost || new URL(request.url).host;
-    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-    const requestProto = forwardedProto || new URL(request.url).protocol.replace(":", "");
-    return parsedOrigin.origin === `${requestProto}://${requestHost}`;
+    const requestOrigin = new URL(request.url).origin;
+    return parsedOrigin.origin === requestOrigin;
   } catch {
     return false;
   }
