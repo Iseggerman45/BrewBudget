@@ -94,14 +94,16 @@ export async function POST(request: Request) {
   } catch {
     // If the token was stored but the account setup failed, remove the partial
     // connection and revoke it with Plaid so no orphaned credential remains.
-    if (itemStored && exchanged && admin) {
-      await admin.from("plaid_items").delete()
-        .eq("owner_id", user.id)
-        .eq("item_id", exchanged.item_id);
+    if (exchanged) {
+      if (itemStored && admin) {
+        await admin.from("plaid_items").delete()
+          .eq("owner_id", user.id)
+          .eq("item_id", exchanged.item_id);
+      }
       try {
         await plaidRequest("/item/remove", { access_token: exchanged.access_token });
       } catch {
-        // The database record is already removed; a failed revoke is not exposed.
+        // A failed revoke is not exposed to the client.
       }
     }
     return NextResponse.json({ error: "The bank connection could not be completed. Please try again." }, { status: 502 });
