@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - security/hardening-baseline
     tags:
       - "v*"
 
@@ -21,8 +22,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
-        run: npm install
+      - name: Install web workspace dependencies
+        run: npm ci
+      - name: Install isolated desktop workspace
+        run: npm ci --prefix desktop
       - name: Build universal Mac DMG
         run: npm run dist:mac
       - name: Upload DMG installer

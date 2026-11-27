@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import BankConnections from "@/components/BankConnections";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, ChevronDown, ChevronLeft,
-  ChevronRight, CircleHelp, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
+  ArrowDownLeft, ArrowUpRight, Bell, CalendarDays, ChevronDown,
+  ChevronRight, Coffee, CreditCard, Ellipsis, Home, LayoutDashboard,
   Plus, Search, Settings2, ShoppingBag, Sparkles, Target, TrendingUp, Wallet, Volume2, VolumeX,
   Utensils, CarFront, Zap, Heart, SlidersHorizontal, ArrowLeftRight, X, Check, Droplet, Fuel, Wifi, Ticket, UserRound, Gift,
   Menu, Landmark, PiggyBank, ReceiptText, Trash2, Pencil, Building2, Lightbulb, Flame, Recycle, Smartphone, ShoppingCart, Store, Pizza, Plane, PawPrint, Baby, GraduationCap, BookOpen, Shirt, Dumbbell, Gamepad2, Music, Film, Tv, BriefcaseBusiness, Wrench, Umbrella, Bike, Bus, TrainFront, ParkingCircle, Scissors, PartyPopper, Sprout, Leaf, Package, Shield, WalletCards, Banknote, type LucideIcon
@@ -19,6 +19,16 @@ import {
 type Period = "Monthly" | "Biweekly";
 type Tab = "Overview" | "Income" | "Budgets" | "Transactions" | "Debt" | "Accounts" | "Goals" | "Reports";
 type Debt = { id: number; name: string; original: number; balance: number };
+type DashboardTransactionRow = {
+  id: string;
+  category_id: string | null;
+  description: string | null;
+  merchant: string | null;
+  amount: number | string;
+  transaction_type: string;
+  transaction_date: string | null;
+  categories: { name: string; icon: string | null; color: string | null } | Array<{ name: string; icon: string | null; color: string | null }> | null;
+};
 type Transaction = { id?: string; categoryId?: string | null; name: string; category: string; date: string; amount: number; icon: string; color: string; type: "expense" | "income" };
 type CategoryItem = { id?: string; name: string; spent: number; budget: number; budgetPeriod: "monthly" | "biweekly"; color: string; icon: string };
 
@@ -149,7 +159,7 @@ export default function Dashboard() {
         fetch("/api/accounts", { cache: "no-store" })
       ]);
       if (active && transactionResult.data) {
-        const imported = transactionResult.data.map((row: any) => {
+        const imported = transactionResult.data.map((row: DashboardTransactionRow) => {
           const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
           const isIncome = row.transaction_type === "income";
           const merchant = row.merchant || row.description || "Transaction";
@@ -167,23 +177,23 @@ export default function Dashboard() {
           const color = isIncome ? "#CA9EE6" : category?.color || visual?.color || merchantMatch?.color || "#99D1DB";
           const categoryName = isIncome ? "Income" : category?.name || merchantMatch?.name || "Uncategorized";
           const rawDate = row.transaction_date ? String(row.transaction_date) : "";
-          const dateValue = rawDate ? new Date(/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDate) ? rawDate + "T12:00:00" : rawDate) : null;
+          const dateValue = rawDate ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate + "T12:00:00" : rawDate) : null;
           const date = dateValue && !Number.isNaN(dateValue.getTime()) ? dateValue.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Date unavailable";
           return { id: row.id, categoryId: row.category_id, name: merchant, category: categoryName, date, amount: isIncome ? Number(row.amount) : -Number(row.amount), icon, color, type: isIncome ? "income" : "expense" } as Transaction;
         });
         setTransactions(imported);
         const spendTotals: Record<string, number> = {};
-        for (const row of transactionResult.data as any[]) {
+        for (const row of transactionResult.data as DashboardTransactionRow[]) {
           const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
           if (row.transaction_type === "expense" && category?.name) spendTotals[category.name] = (spendTotals[category.name] ?? 0) + Number(row.amount);
         }
         setBudgetSpent(spendTotals);
       }
       if (active && accountResponse.ok) {
-        const accountData = await accountResponse.json();
-        const cards = (accountData.accounts ?? []).filter((account: any) => account.account_type === "credit_card");
+        const accountData = await accountResponse.json() as { accounts?: Array<{ account_type: string; current_balance?: number | null }> };
+        const cards = (accountData.accounts ?? []).filter(account => account.account_type === "credit_card");
         setCreditCardCount(cards.length);
-        setCreditCardDebt(cards.reduce((sum: number, account: any) => sum + Math.max(0, Number(account.current_balance ?? 0)), 0));
+        setCreditCardDebt(cards.reduce((sum, account) => sum + Math.max(0, Number(account.current_balance ?? 0)), 0));
       }
       const { data: profile } = await supabase
         .from("profiles")
@@ -198,11 +208,12 @@ export default function Dashboard() {
       setPayFrequency(profile?.pay_frequency ?? "biweekly");
       setNextPayday(profile?.next_payday ?? null);
       if (profile?.onboarding_completed) {
-        let [{ data: savedCategories }, { data: savedBudgets }] = await Promise.all([
+        const [{ data: initialCategories }, { data: savedBudgets }] = await Promise.all([
           supabase.from("categories").select("id,name,icon,color").eq("owner_id", user.id).eq("category_type", "expense"),
           supabase.from("budgets").select("category_id,amount,period_type").eq("owner_id", user.id)
         ]);
         if (!active) return;
+        let savedCategories = initialCategories;
         if (!savedCategories?.length) {
           const defaults = [
             ["Mortgage / rent","home","#8CAAEE"],["Electricity","electric","#E5A86A"],["Natural gas","gas","#E78284"],
@@ -417,7 +428,7 @@ export default function Dashboard() {
 
       {showAdd && <div className="modal-backdrop" onClick={() => setShowAdd(false)}><form className="expense-modal" onSubmit={addTransaction} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW TRANSACTION</div><h2>Add an expense</h2></div><button type="button" className="icon-button" onClick={() => setShowAdd(false)}><X size={18}/></button></div><label>What was it for?<input autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Grocery run" required/></label><label>Amount<input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="0.00" required/></label><label>Category<select value={newCategory} onChange={e => setNewCategory(e.target.value)}>{categoryList.map(c => <option key={c.name}>{c.name}</option>)}<option>Debt payment</option></select></label>{newCategory === "Debt payment" && <label>Apply payment to<select value={paymentDebtId} onChange={e => setPaymentDebtId(e.target.value)} required><option value="">Choose a debt</option>{debts.filter(d => d.balance > 0).map(d => <option key={d.id} value={d.id}>{d.name} · {money(d.balance)} left</option>)}</select></label>}<button className="primary-button modal-submit" type="submit"><Check size={16}/> Save expense</button><p className="demo-note">Demo mode · This entry is stored only in this browser session.</p></form></div>}
       {showDebtModal && <div className="modal-backdrop" onClick={() => setShowDebtModal(false)}><form className="expense-modal" onSubmit={addDebt} onClick={e => e.stopPropagation()}><div className="modal-head"><div><div className="card-label">NEW DEBT</div><h2>Add a debt</h2></div><button type="button" className="icon-button" onClick={() => setShowDebtModal(false)}><X size={18}/></button></div><label>What is this debt?<input autoFocus value={debtName} onChange={e => setDebtName(e.target.value)} placeholder="e.g. Student loans" required/></label><label>Starting balance<input type="number" min="0.01" step="0.01" value={debtAmount} onChange={e => setDebtAmount(e.target.value)} placeholder="10000.00" required/></label><button className="primary-button modal-submit" type="submit"><Plus size={16}/> Add debt</button><p className="demo-note">Demo mode · Your debt data is stored only in this browser session.</p></form></div>}{celebrate && <div className="debt-celebration"><div className="confetti-burst">{Array.from({length:48},(_,i)=><i key={i} style={{left:`${(i*37)%100}%`,animationDelay:`${(i%9)*.09}s`,transform:`rotate(${i*31}deg)`}}/>)}</div><div className="celebration-card"><div className="celebration-spark"><Sparkles size={32}/></div><div className="card-label">DEBT PAID IN FULL</div><h2>You did it!</h2><p>One less weight to carry. Take a moment and celebrate this milestone.</p><button className="primary-button" onClick={() => setCelebrate(false)}>That feels amazing <Check size={16}/></button></div></div>}{toast && <div className="toast"><span className="toast-check"><Check size={15}/></span>{toast}</div>}
-      {showAnnualIncomeReview && <div className="modal-backdrop annual-income-backdrop" role="presentation"><section className="glass-card annual-income-modal" role="dialog" aria-modal="true" aria-labelledby="annual-income-title"><div className="annual-income-icon"><Banknote size={23}/><Sparkles size={14}/></div><div className="card-label">A FRESH YEAR, A FRESH LOOK</div><h2 id="annual-income-title">Has your income changed?</h2><p>A new year is a great time to account for pay raises, job changes, new side work, or any other changes to your income. Let's make sure your budget is built around the right numbers.</p><div className="annual-income-actions"><button className="primary-button" onClick={() => void reviewAnnualIncome()}>Review my income <ArrowUpRight size={16}/></button><button className="secondary-button" onClick={() => setShowAnnualIncomeReview(false)}>Remind me later</button></div></section></div>}
+      {showAnnualIncomeReview && <div className="modal-backdrop annual-income-backdrop" role="presentation"><section className="glass-card annual-income-modal" role="dialog" aria-modal="true" aria-labelledby="annual-income-title"><div className="annual-income-icon"><Banknote size={23}/><Sparkles size={14}/></div><div className="card-label">A FRESH YEAR, A FRESH LOOK</div><h2 id="annual-income-title">Has your income changed?</h2><p>A new year is a great time to account for pay raises, job changes, new side work, or any other changes to your income. Let&apos;s make sure your budget is built around the right numbers.</p><div className="annual-income-actions"><button className="primary-button" onClick={() => void reviewAnnualIncome()}>Review my income <ArrowUpRight size={16}/></button><button className="secondary-button" onClick={() => setShowAnnualIncomeReview(false)}>Remind me later</button></div></section></div>}
       {showOnboarding && currentUserId && <OnboardingWizard userId={currentUserId} onComplete={() => window.location.reload()}/>}
     </main>
   );
@@ -444,7 +455,7 @@ function BudgetCycleCard({ userId, payFrequency, nextPayday, onScheduleUpdated }
   useEffect(() => { setFrequency(["weekly","biweekly","monthly"].includes(payFrequency) ? payFrequency : "biweekly"); }, [payFrequency]);
   useEffect(() => { setPayday(nextPayday ?? ""); }, [nextPayday]);
 
-  async function loadCycles() {
+  const loadCycles = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
     const { data, error } = await createClient().from("budget_cycles").select("id,start_date,end_date,status,started_by")
       .eq("owner_id", userId).order("start_date", { ascending: false }).limit(8);
@@ -455,8 +466,8 @@ function BudgetCycleCard({ userId, payFrequency, nextPayday, onScheduleUpdated }
       setHistory(rows.filter(row => row.status === "closed").slice(0,3));
     }
     setLoading(false);
-  }
-  useEffect(() => { void loadCycles(); }, [userId]);
+  }, [userId]);
+  useEffect(() => { void loadCycles(); }, [loadCycles]);
 
   function dateLabel(value: string) {
     return new Date(value + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -730,7 +741,7 @@ function SubPage({ tab, transactions, search, setSearch, setShowAdd, budgetSpent
     }
     void loadPeriodSpending();
     return () => { active = false; };
-  }, [tab, userId, budgetPeriod, nextPayday, payFrequency, categories]);
+  }, [tab, userId, budgetPeriod, nextPayday, payFrequency, categories, setBudgetSpent]);
 
   useEffect(() => {
     if (tab !== "Budgets" || !userId) return;

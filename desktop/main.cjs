@@ -1,7 +1,32 @@
 const { app, BrowserWindow, shell, Menu } = require("electron");
 
 const APP_URL = "https://brewbudget.vercel.app/login";
-const APP_HOST = "brewbudget.vercel.app";
+const ALLOWED_HOSTS = new Set([
+  "brewbudget.vercel.app",
+  "swmdcdlgnfluuylgpuve.supabase.co",
+  "accounts.google.com",
+  "appleid.apple.com"
+]);
+
+function isTrustedNavigation(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === "https:" && ALLOWED_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function openExternalSafely(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol === "https:" || url.protocol === "mailto:") {
+      void shell.openExternal(url.toString());
+    }
+  } catch {
+    // Ignore malformed or unsupported navigation targets.
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -16,39 +41,25 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false
     }
   });
 
   win.once("ready-to-show", () => win.show());
 
-  // Keep BrewBudget and its Supabase authentication flow inside the app.
-  // Open unrelated links in the user's default browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.hostname === APP_HOST || parsed.hostname.endsWith(".supabase.co") ||
-          parsed.hostname.endsWith(".google.com") || parsed.hostname === "appleid.apple.com") {
-        return { action: "allow" };
-      }
-    } catch (_) {}
-    shell.openExternal(url);
+    if (isTrustedNavigation(url)) return { action: "allow" };
+    openExternalSafely(url);
     return { action: "deny" };
   });
 
   win.webContents.on("will-navigate", (event, url) => {
-    try {
-      const parsed = new URL(url);
-      const allowed = parsed.hostname === APP_HOST ||
-        parsed.hostname.endsWith(".supabase.co") ||
-        parsed.hostname.endsWith(".google.com") ||
-        parsed.hostname === "appleid.apple.com";
-      if (!allowed) {
-        event.preventDefault();
-        shell.openExternal(url);
-      }
-    } catch (_) {
+    if (!isTrustedNavigation(url)) {
       event.preventDefault();
+      openExternalSafely(url);
     }
   });
 
