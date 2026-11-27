@@ -12,7 +12,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["electron/**/*.cjs"],
+    files: ["electron/**/*.cjs", "desktop/**/*.cjs"],
     rules: {
       // Electron's main process uses CommonJS by design.
       "@typescript-eslint/no-require-imports": "off",
