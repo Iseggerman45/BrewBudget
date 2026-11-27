@@ -603,13 +603,13 @@ function IncomePage({ userId }: { userId: string | null }) {
   </div>;
 }
 
-function TransactionList({ transactions, categories, onSaveCategory }: { transactions: Transaction[]; categories: CategoryItem[]; onSaveCategory: (transaction: Transaction, category: CategoryItem) => Promise<void> }) {
+function TransactionList({ transactions, categories = [], onSaveCategory }: { transactions: Transaction[]; categories?: CategoryItem[]; onSaveCategory?: (transaction: Transaction, category: CategoryItem) => Promise<void> }) {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   async function saveCategory() {
-    if (!editing || !selectedCategory) return;
+    if (!editing || !selectedCategory || !onSaveCategory) return;
     const category = categories.find(item => item.id === selectedCategory);
     if (!category) return;
     setSaving(true); setMessage("");
@@ -624,7 +624,7 @@ function TransactionList({ transactions, categories, onSaveCategory }: { transac
         <div className="transaction-icon" style={{ color, backgroundColor: color + "22" }}><CategoryIcon name={t.icon}/></div>
         <div className="transaction-info"><strong>{t.name}</strong><span>{t.category} · {t.date}</span></div>
         <div className={`transaction-amount ${t.type === "income" ? "income-amount" : ""}`}>{t.type === "income" ? "+" : "−"}{money(Math.abs(t.amount))}</div>
-        {t.id && <button type="button" className="bill-edit" aria-label={`Edit category for ${t.name}`} title="Change category" onClick={() => { setEditing(t); setSelectedCategory(t.categoryId ?? ""); setMessage(""); }}><Pencil size={14}/></button>}
+        {t.id && onSaveCategory && <button type="button" className="bill-edit" aria-label={`Edit category for ${t.name}`} title="Change category" onClick={() => { setEditing(t); setSelectedCategory(t.categoryId ?? ""); setMessage(""); }}><Pencil size={14}/></button>}
       </div>;
     })}</div>
     {editing && <div className="modal-backdrop" onClick={() => setEditing(null)}><section className="expense-modal" onClick={event => event.stopPropagation()}>
